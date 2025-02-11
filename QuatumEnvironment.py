@@ -8,9 +8,9 @@ import matplotlib.patches as mpatches
 
 import copy
 
-from QPUClass import QPUClass
-from DAGClass import DAGClass
-from QubitMappingClass import QubitMappingClass
+from QuantumEnvironment.QPUClass import QPUClass
+from QuantumEnvironment.DAGClass import DAGClass
+from QuantumEnvironment.QubitMappingClass import QubitMappingClass
 from Constants import Constants
 from SystemStateClass import SystemStateClass
 

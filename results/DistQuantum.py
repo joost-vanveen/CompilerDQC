@@ -3,7 +3,7 @@ import sys
 from os.path import dirname, abspath
 sys.path.append(dirname(dirname(abspath(__file__))))
 
-from QuantumEnv import EnvUpdater
+from QuantumEnvironment.QuantumEnv import EnvUpdater
 
 from agents.actor_critic_agents.A2C import A2C
 from agents.DQN_agents.Dueling_DDQN import Dueling_DDQN

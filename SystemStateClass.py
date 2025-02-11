@@ -6,9 +6,9 @@ import random
 import matplotlib.patches as mpatches
 import copy
 
-from QPUClass import QPUClass
-from DAGClass import DAGClass
-from QubitMappingClass import QubitMappingClass
+from QuantumEnvironment.QPUClass import QPUClass
+from QuantumEnvironment.DAGClass import DAGClass
+from QuantumEnvironment.QubitMappingClass import QubitMappingClass
 from Constants import Constants
 
 
@@ -20,6 +20,7 @@ class SystemStateClass():
     def __init__(self, G, my_DAG, qubit_mapping):
         self.epsilon = 1
         self.G = G
+        self.update_pair_distances()
         self.my_DAG = my_DAG
         self.qm = qubit_mapping
         self.update_frontier()
@@ -37,6 +38,9 @@ class SystemStateClass():
         for node in self.G.nodes:
             if self.G.nodes[node]['weight'] > 0:
                 self.G.nodes[node]['weight'] -= 1
+
+    def update_pair_distances(self):
+        self.pair_distances = nx.all_pairs_dijkstra_path_length(self.G)
 
 
     def perform_action(self, action, link):
@@ -581,3 +585,15 @@ class SystemStateClass():
         plt.text(0.5, 1.1, 'reward='+str(rew_display) + ",\n" 'distance_metric='+str(distance_metric_disp) + ",\n" + 'action='+str(action_disp) , ha='center', va='top', transform=plt.gca().transAxes)
         plt.text(0.5, -0.1, 'dag_left='+str(topo_disp) + ",\n"+'frontier='+str(frontier_disp), ha='center', va='bottom', transform=plt.gca().transAxes)
         plt.show()
+
+
+    # Finds the distance between each logical qubit pair
+    def find_pair_distances(self):
+        ball_distances = {}
+
+        for ball1 in range(len(self.qm.numQubits)):
+            for ball2 in range(ball1, len(self.qm.numQubits)):
+                distance, epr_links_used = self.calculate_distance_between_balls(ball1, ball2, self.G)
+                ball_distances[(ball1, ball2)] = distance
+
+        return ball_distances
