@@ -10,7 +10,7 @@ from agents.DQN_agents.DQN_With_Fixed_Q_Targets import DQN_With_Fixed_Q_Targets
 from environments.Bit_Flipping_Environment import Bit_Flipping_Environment
 from agents.policy_gradient_agents.PPO import PPO
 from agents.Trainer import Trainer
-from utilities.data_structures.Config import Config
+from config.Config import Config
 from agents.DQN_agents.DQN import DQN
 import numpy as np
 import torch

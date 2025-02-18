@@ -1,5 +1,5 @@
 import numpy as np
-from utilities.data_structures.Config import Config
+from config.Config import Config
 from agents.Trainer import Trainer
 
 def test_get_mean_and_standard_deviation_difference_results():

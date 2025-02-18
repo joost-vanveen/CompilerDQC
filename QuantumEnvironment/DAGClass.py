@@ -22,10 +22,7 @@ class DAGClass():
         self.layers = self.compute_node_layers()
         #self.numQubits = self.compute_numQubits()
         self.numQubits = Constants.NUMQ
-        
-
-
-
+            
 
     def generate_cnot_dag(self, numQ, numG):
         qubit_layers = {qubit: 0 for qubit in range(numQ)}
@@ -37,7 +34,6 @@ class DAGClass():
             dag.append((x, y, least_layer-1))
         dag.sort(key=lambda node: node[2])
         return dag
-
 
 
     def create_random_DAG(self,numQ, numG):
@@ -74,6 +70,7 @@ class DAGClass():
         # ])
         return DAG
     
+    
     def compute_topo_order(self):
         # Get nodes in topological order
         topo_order = list(nx.topological_sort(self.DAG))
@@ -81,6 +78,7 @@ class DAGClass():
         # Function to compute layer of each node for better visualization
         # Compute layers of nodes
         return topo_order
+    
             
     def compute_node_layers(self):
         layers = {node: 0 for node in self.topo_order}
@@ -88,8 +86,6 @@ class DAGClass():
             for pred in self.DAG.predecessors(node):
                 layers[node] = max(layers[node], layers[pred] + 1)
         return layers
-    
-
         
 
     def remove_node(self, node): #It does not check whether it is possible to implement the gate

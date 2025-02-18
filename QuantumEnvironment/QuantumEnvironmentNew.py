@@ -23,24 +23,29 @@ class QuantumEvnironment():
 
         #Initialize the DQC architecture
         self.my_arch = QPUClass()
+        self.G = self.my_arch.G
         #Initialize the DAG - quantum circuit
         self.my_DAG = DAGClass()
+        self.pairs = self.get_qubit_pairs()
+        self.num_entanglement_links = self.my_arch.numEdgesQuantum
+        self.max_epr_pairs = 9
+        self.qubit_amount = self.my_DAG.numQubits + 2*self.max_epr_pairs
+
+        self.action_queues = []
         
         self.action_size, self.state_size = self.generate_action_and_state_size()
 
-        self.state_object = self.generate_initial_state() 
-        self.state = np.array(self.state_object.convert_self_to_state_vector())  # create the initial state vector from the init state object
-        print("At the beginning, state is: ", self.state)
-
-        self.mask = np.array(self.get_mask())
+        self.generate_initial_state() 
+        self.mask, self.state = self.update_state_vector_and_mask()
+        print("At the beginning, state is: ", self.get_qubit_location_vector())
     
         
     #!this function generates inital state based on processor architecture and initial DAG conditions  (each_reset_start)  - note that it generates a state object from the class SystemStateClass 
     def generate_initial_state(self):  
         # TODO:
-        # generate inital mapping
-         self.qm = QubitMappingClass(self.my_arch.numNodes, self.my_DAG.numQubits, self.max_epr_pairs, initial_mapping=None)
-         self.update_pair_distances()
+        # make it so we can generate either random mapping or set based on config
+        # test this
+         self.qm = QubitMappingClass(self.my_arch.numNodes, self.my_DAG.numQubits, self.max_epr_pairs, self.G, initial_mapping=None)
          self.update_frontier()
          self.distance_metric = self.calculate_distance_metric()
          self.distance_metric_prev = self.distance_metric
@@ -48,25 +53,36 @@ class QuantumEvnironment():
     
     #!this function generates the action space size based on possible actions that could be taken
     def generate_action_and_state_size(self):
-        action_size = 1 + ((self.my_DAG.numQubits * (self.my_DAG.numQubits - 1)) // 2) #1 for cool off, then amount of qubit pairs
-        state_size = ((self.my_DAG.numQubits * (self.my_DAG.numQubits - 1)) // 2) +  self.my_DAG.numGates # amount of qubits pairs plus the size of the DAG
+        action_size = 1 + ((self.qubit_amount * (self.qubit_amount - 1)) // 2) + self.num_entanglement_links #1 for cool off, then amount of qubit pairs plus amount of quantum links
+        state_size = ((self.qubit_amount * (self.qubit_amount - 1)) // 2) +  self.my_DAG.numGates # amount of qubits pairs plus the size of the DAG
         return action_size, state_size
+    
+
+    # TODO: TEST THIS
+    #!creates all possible qubit pairs, where qubits >= logical qubit amount are reserved for EPR pair creation
+    def get_qubit_pairs(self):
+        pairs = []
+
+        for ball1 in range(self.qubit_amount-1):
+            for ball2 in range(ball1+1, self.qubit_amount):
+                pairs.append((ball1, ball2))
+
+        return pairs
         
     
-    #!after each completion (DAG completion or deadline failure), next game starts with environment/game reset (each_reset_start)       
+    #!after each completion (DAG completion or deadline failure), next game starts with environment/game reset (each_reset_start) 
+    # TODO: Change such that only the inital mapping and all quantum env cooldowns etc are reset      
     def environment_reset(self): #environment reset fn
 
         #Initialize the DAG - quantum circuit
         self.my_DAG = DAGClass()      ##HERE WE WILL CHANGE THE DAG IN EVERY TIME SLOT BUT FOR NOW WE FIX A SINGLE ONE - NOTE THAT THE STATE SPACE WILL CHANGE WITH NONE AT THE END BUT WE WILL HAVE A FIXED MAX GATE NUMBER
-        
 
         self.action_size, self.state_size = self.generate_action_and_state_size()
 
         self.state_object = self.generate_initial_state() 
-        self.state = np.array(self.state_object.convert_self_to_state_vector())  # create the initial state vector from the init state object
+        self.mask, self.state = self.update_state_vector_and_mask()
 
-        self.mask = np.array(self.get_mask())
-        print("After Reset, state is: ", self.state)
+        print("After Reset, state is: ", self.get_qubit_location_vector())
 
 
     #!checks if the link is not on cooldown  
@@ -80,12 +96,51 @@ class QuantumEvnironment():
             if self.G.nodes[node]['weight'] > 0:
                 self.G.nodes[node]['weight'] -= 1   
 
-    #!update distnces between all the logical qubit pairs
-    def update_pair_distances(self):
-        self.pair_distances = nx.all_pairs_dijkstra_path_length(self.G)
 
     #!update distnces between all the logical qubit pairs
-    #!TODO: MAY BE MERGED WITH RL_STEP AND STEP FROM STATECLASS INTO ONE FUNC
+    #!TODO: graph changing has been added, now testing
+    def update_state_vector_and_mask(self):
+        state_vector = []
+
+        # Copy graph to add EPR links and swap weights for pathfinding
+        self.pathfinding_G = self.G.copy()
+
+        # Adjust edge weights based on qubit cooldown and quantum links
+        for edge in self.pathfinding_G.edges:
+            node1, node2 = edge
+
+            # If the edge is a quantum link, set weight to infinity (makes it unusable for shortest path)
+            if self.pathfinding_G.edges[node1, node2]['label'] == 'quantum':
+                self.pathfinding_G.edges[node1, node2]['weight'] = float('inf')
+            else:
+                # Set the weight to 3 if the qubits are not on cooldown
+                if self.pathfinding_G.nodes[node1]['weight'] > 0 or self.pathfinding_G.nodes[node2]['weight'] > 0:
+                    self.pathfinding_G.edges[node1, node2]['weight'] = 3
+
+        # Add edges for EPR pairs and set their weight to 2 (extra cd compared to swap)
+        for (box1, box2) in self.qm.EPR_pairs.values(): 
+            self.pathfinding_G.add_edge(box1, box2, weight=2)
+
+        # Find all qubit pair distances
+        for ball1, ball2 in self.pairs:
+                # Find the boxes corresponding to ball1 and ball2
+                box1 = self.qm.get_box(ball1)
+                box2 = self.qm.get_box(ball2)
+                # Calculate the shortest path
+                try:
+                    shortest_path = nx.shortest_path(self.pathfinding_G, source=box1, target=box2, weight='weight')
+                    path_length = nx.path_weight(self.pathfinding_G, shortest_path, weight='weight')    # should only consider edge weight so cooldowns dont matter
+                except nx.NetworkXNoPath:
+                    # In case there is no path between the two nodes
+                    path_length = float('inf')
+                
+                # Add pathlength between pair to state
+                state_vector.append(path_length)
+
+        return state_vector
+    
+
+    #!update distnces between all the logical qubit pairs
     def perform_action(self, action, link):
         performed_score = False #make it true only when you indeed performed a score
         # check the cd and produce error if not score or stop. Remember scores we do not produce error since they happen automatically
@@ -102,12 +157,12 @@ class QuantumEvnironment():
         elif action == "SCORE":
             performed_score = self.score(link)
             print('*************************WE SCORE!!************************')
-            print("state is: ", self.convert_self_to_state_vector())
+            print("state is: ", self.get_qubit_location_vector())
             self.update_frontier()
         elif action == "tele-gate":
             performed_score = self.tele_gate(link)
             print('*************************WE TELEGATE!!************************')
-            print("state is: ", self.convert_self_to_state_vector())
+            print("state is: ", self.get_qubit_location_vector())
             self.update_frontier()
         elif action == "tele-qubit":
             self.tele_qubit(link)
@@ -118,10 +173,13 @@ class QuantumEvnironment():
         return performed_score
     
     #!performs the generate action
+    #! TODO: Check if boxes have EPR pair could be better defined
     def generate(self, link):
+        # Check if the link is a quantum link
         if self.G.edges[link]['label'] != "quantum":
             raise ValueError("GENERATE can only be performed on quantum links.")
-        if (self.qm.get_ball(link[0]) != None or self.qm.get_ball(link[1]) != None):
+        # Check if boxes have reserved EPR pair qubit mapped to them
+        if (self.qm.get_ball(link[0]) >= self.my_DAG.numQubits or self.qm.get_ball(link[1]) >= self.my_DAG.numQubits):
             raise ValueError("GENERATE can only be performed on empty link qubits.")
         self.G.nodes[link[0]]['weight'] = Constants.COOLDOWN_GENERATE
         self.G.nodes[link[1]]['weight'] = Constants.COOLDOWN_GENERATE
@@ -130,33 +188,23 @@ class QuantumEvnironment():
 
 
     #!performs the swap action
+    # TODO: can mostly remain the same only the EPR part has to be updated
     def swap(self, link):
         if self.G.edges[link]['label'] == "quantum":
             raise ValueError("SWAP cannot be performed on quantum links.")  
+        
+        self.virtual_swap(self, link)
+
+        self.G.nodes[link[0]]['weight'] = Constants.COOLDOWN_SWAP
+        self.G.nodes[link[1]]['weight'] = Constants.COOLDOWN_SWAP
+
+
+    #!performs the virtual swap action
+    # TODO: can mostly remain the same only the EPR part has to be updated
+    def virtual_swap(self, link):
         box1, box2 = link
         ball1 = self.qm.get_ball(box1)
         ball2 = self.qm.get_ball(box2)
-        # Function to handle swapping of EPR pairs and normal balls
-        def handle_swap(box_from, box_to, ball):
-            if ball is None:
-                return
-            # Check if ball is part of EPR pairs
-            if ball in self.qm.EPR_pairs:
-                self.qm.ball_to_box[ball].remove(box_from)
-                self.qm.ball_to_box[ball].append(box_to)
-                temp_boxes = self.qm.ball_to_box[ball]              
-                self.qm.EPR_pairs[ball] = temp_boxes       #update the EPR pairs as well
-
-            else:
-                self.qm.ball_to_box[ball] = box_to
-
-        # If both boxes are empty, don't perform a swap
-        if ball1 is None and ball2 is None:
-            return
-        
-        # Temporary store balls before swapping in box_to_ball mapping
-        temp_ball1 = ball1
-        temp_ball2 = ball2
 
         if box1 in self.qm.box_to_ball:
             self.qm.box_to_ball.pop(box1)
@@ -164,42 +212,14 @@ class QuantumEvnironment():
             self.qm.box_to_ball.pop(box2)
         
         # Handle swap of ball1 from box1 to box2
-        if temp_ball1 is not None:
-            self.qm.box_to_ball[box2] = temp_ball1
-            handle_swap(box1, box2, temp_ball1)
+        self.qm.box_to_ball[box2] = ball1
+        self.qm.ball_to_box[ball1].remove(box1)
+        self.qm.ball_to_box[ball1].append(box2)
 
         # Handle swap of ball2 from box2 to box1
-        if temp_ball2 is not None:
-            self.qm.box_to_ball[box1] = temp_ball2
-            handle_swap(box2, box1, temp_ball2)
-
-        self.G.nodes[link[0]]['weight'] = Constants.COOLDOWN_SWAP
-        self.G.nodes[link[1]]['weight'] = Constants.COOLDOWN_SWAP
-
-    #!performs the virtual swap action
-    #!TODO: def inside of another def seems cursed to me and very unnecessary
-    def virtual_swap(self, link):
-        box2, other_box = link             #other_box has nothing in it here
-        ball2 = self.qm.get_ball(box2)
-        if ball2 is None:
-            return
-        
-        # Temporary store ball before swapping in box_to_ball mapping
-        temp_ball2 = ball2
-        if box2 in self.qm.box_to_ball:
-            self.qm.box_to_ball.pop(box2)
-
-        # Handle swap of ball2 from box2 to other_box
-        self.qm.box_to_ball[other_box] = temp_ball2
-        # handle swapping of EPR pairs and normal balls
-        # Check if ball is part of EPR pairs
-        if temp_ball2 in self.qm.EPR_pairs:
-            self.qm.ball_to_box[temp_ball2].remove(box2)
-            self.qm.ball_to_box[temp_ball2].append(other_box)
-            temp_boxes = self.qm.ball_to_box[temp_ball2]              
-            self.qm.EPR_pairs[temp_ball2] = temp_boxes       #update the EPR pairs as well
-        else:
-            self.qm.ball_to_box[temp_ball2] = other_box
+        self.qm.box_to_ball[box1] = ball2
+        self.qm.ball_to_box[ball2].remove(box2)
+        self.qm.ball_to_box[ball2].append(box1)
 
 
     #!performs the score action
@@ -223,7 +243,7 @@ class QuantumEvnironment():
 
 
     #!performs the stop action
-    #!TODO: look into merging reduce cooldown into this func to reduce code size
+    #!TODO: look into merging reduce cooldown into this func to reduce code size since it is only used here
     def stop(self):
         self.reduce_cooldowns()
 
@@ -231,12 +251,17 @@ class QuantumEvnironment():
     #!performs the tele_gate action
     # in the tele_gate action, note that the link referes to a "virtual" link between EPR pairs
     # gets as input the positions of the EPR pair and scores using any pair of neighbors (if possible)
+    # TODO: test this
     def tele_gate(self, link):
         flag = False # Have performed tele-gate
         box1, box2 = link
         max_cd = 0
         ball1, ball2 = self.qm.get_ball(box1), self.qm.get_ball(box2)
-        if ball1 not in self.qm.EPR_pairs or ball2 not in self.qm.EPR_pairs or ball1 != ball2:
+        in_epr1, epr_id1 = self.qm.ball_in_epr_pairs(ball1)
+        in_epr2, epr_id2 = self.qm.ball_in_epr_pairs(ball2)
+
+        # check if balls are part of the same EPR pair
+        if not (in_epr1 and in_epr2 and epr_id1==epr_id2):
             raise ValueError("tele-gate can only happen between EPR pairs.")
 
         neighbors_ball1 = set(self.qm.get_ball(neighbor) for neighbor in self.G.neighbors(box1))
@@ -244,10 +269,11 @@ class QuantumEvnironment():
 
         for (ball1_frontier, ball2_frontier, _) in self.frontier: 
             if ((ball1_frontier in neighbors_ball1 and ball2_frontier in neighbors_ball2) or (ball1_frontier in neighbors_ball2 and ball2_frontier in neighbors_ball1)):
-                #self.topo_order.remove((ball1_frontier, ball2_frontier, _))
+                # remove node from DAG
                 self.my_DAG.remove_node((ball1_frontier, ball2_frontier)) #it will understand to remove the fist layer that appears 
-                #print(ball1)
-                self.qm.destroy_EPR_pair(ball1)
+                # destroy EPR pair used
+                self.qm.destroy_EPR_pair(epr_id1)
+                # check if any qubits are on cooldown, telegate is performed after this so cooldown of the telegate becomes max cd of qubits + telegate cd
                 max_cd = max(self.G.nodes[self.qm.get_box(ball1_frontier)]['weight'], self.G.nodes[self.qm.get_box(ball2_frontier)]['weight'], self.G.nodes[link[0]]['weight'], self.G.nodes[link[1]]['weight'])
                 self.G.nodes[self.qm.get_box(ball1_frontier)]['weight'] = max_cd + Constants.COOLDOWN_TELE_GATE   # since scores are automatic
                 self.G.nodes[self.qm.get_box(ball2_frontier)]['weight'] = max_cd + Constants.COOLDOWN_TELE_GATE
@@ -263,156 +289,117 @@ class QuantumEvnironment():
     
     #!performs the tele_qubit action
     #needs a link between an EPR particle and a non EPR particle. It teleports the nonEPR qubit to the position that the other half EPR is.
+    # TODO: test this
     def tele_qubit(self, link):
         box1, box2 = link
-        if self.qm.get_ball(box1) not in self.qm.EPR_pairs and self.qm.get_ball(box2) not in self.qm.EPR_pairs:
+        in_epr1, epr_id1 = self.qm.ball_in_epr_pairs(self.qm.get_ball(box1))
+        in_epr2, epr_id2 = self.qm.ball_in_epr_pairs(self.qm.get_ball(box2))
+        if not in_epr1 or not in_epr2:
             raise ValueError("tele-qubit needs a half of EPR pair.")
-        if self.qm.get_ball(box1) in self.qm.EPR_pairs and self.qm.get_ball(box2) not in self.qm.EPR_pairs:
+        if in_epr1 and not in_epr2:
             print("------Telequbit performed in", self.qm.get_ball(box2), "using", self.qm.get_ball(box1), "------------------")
-            EPR_box = copy.deepcopy(self.qm.query_EPR_pair(self.qm.get_ball(box1)))
-            EPR_box.remove(box1)
-            other_box = EPR_box[0] #where is the other EPR half
+            EPR_balls = self.qm.EPR_pairs[epr_id1]
+            EPR_balls.remove(self.qm.get_ball(box1))
+            other_box = self.qm.get_box(EPR_balls[0]) #where is the other EPR half
             if (self.G.nodes[other_box]['weight'] != 0):     
                 raise ValueError("tele-qubit cannot be performed due to cooldown")
-            self.qm.destroy_EPR_pair(self.qm.get_ball(box1))
+            self.qm.destroy_EPR_pair(epr_id1)
             self.virtual_swap((box2, other_box))    # box2 contains the qubit and other box contains the box of the EPR half
             self.G.nodes[other_box]['weight'] = Constants.COOLDOWN_TELE_QUBIT
-        elif self.qm.get_ball(box2) in self.qm.EPR_pairs and self.qm.get_ball(box1) not in self.qm.EPR_pairs:
+        elif not in_epr1 and in_epr2:
             print("------Telequbit performed in", self.qm.get_ball(box1), "using", self.qm.get_ball(box2), "------------------")
-            EPR_box = copy.deepcopy(self.qm.query_EPR_pair(self.qm.get_ball(box2)))
-            EPR_box.remove(box2)
-            other_box = EPR_box[0] #where is the other EPR half
+            EPR_balls = self.qm.EPR_pairs[epr_id2]
+            EPR_balls.remove(self.qm.get_ball(box2))
+            other_box = self.qm.get_box(EPR_balls[0]) #where is the other EPR half
             if (self.G.nodes[other_box]['weight'] != 0):     
                 raise ValueError("tele-qubit cannot be performed due to cooldown")
-            ##print((box1, other_box))
-            self.qm.destroy_EPR_pair(self.qm.get_ball(box2))
-            self.virtual_swap((box1, other_box))
+            self.qm.destroy_EPR_pair(epr_id1)
+            self.virtual_swap((box2, other_box))    # box2 contains the qubit and other box contains the box of the EPR half
             self.G.nodes[other_box]['weight'] = Constants.COOLDOWN_TELE_QUBIT
         self.G.nodes[link[0]]['weight'] = Constants.COOLDOWN_TELE_QUBIT
-        self.G.nodes[link[1]]['weight'] = Constants.COOLDOWN_TELE_QUBIT  #########SINCE YOU KILLED IT, YOU SHOULD PERFORM THE ACTIONS LATER ON?
-
+        self.G.nodes[link[1]]['weight'] = Constants.COOLDOWN_TELE_QUBIT
 
 
     def update_frontier(self):
         # nodes with no incoming edges
         nodes_no_predecessors = set(self.my_DAG.DAG.nodes()) - {node for _, adj_list in self.my_DAG.DAG.adjacency() for node in adj_list.keys()}
         # update frontier
-        self.frontier = nodes_no_predecessors
+        self.frontier = nodes_no_predecessors   
 
 
-    #!performs the mask to show which edges are cooldown
-    #!TODO: this has to be changed such that the mask shows which qubit pairs can be swapped
-    def get_mask(self):  #calculates mask - saves the correct true-falls values depending on whether a link/action can be done and provides a vector form with 0s and 1s with the correct order asked by the agent
-        mask = []
-        for edge in self.G.edges():  #initialize as if every action is possible
-            if (self.G.edges[edge]['label'] != "quantum"):
-                self.G.edges[edge]['mask_tele_qubit'] = True   
-                self.G.edges[edge]['mask_swap'] = True
-            else: self.G.edges[edge]['mask_generate'] = True  
+    #!decodes the action number to the actual action or set of actions
+    #!TODO: test this, i think it is complete now
+    def decode_action_fromNum(self, action_num):
 
-        # first check cooldowns
-        for edge in self.G.edges():  
-            if not self.is_action_possible(edge): #Action cannot be performed due to cooldown        #####HERE ADD DONT GENERATE IF READHED THE THRESHOLD
-                if (self.G.edges[edge]['label'] != "quantum"):
-                    self.G.edges[edge]['mask_tele_qubit'] = False   
-                    self.G.edges[edge]['mask_swap'] = False
-                else: self.G.edges[edge]['mask_generate'] = False  
+        # Check for stop or generate actions
+        if action_num == 0:
+            # stop action
+            return [{'edge': [], 'action': 'stop'}]
+        elif action_num < self.num_entanglement_links+1:
+            generate_actions = []
+            for edge in self.G.edges(data=True):  
+                if edge[2]['label'] == "quantum":  # Check if the label is quantum
+                    generate_actions.append({'edge': edge, 'action': 'GENERATE'})
+            return [generate_actions[action_num-1]]
+        
+        # Find the balls corresponding to the action
+        ball1, ball2 = self.pairs[action_num-(1+self.num_entanglement_links)]
 
-        # now check link by link whether swap is available. The following implement a soft constraint to boost the efficiency of learning.
-            # specifically, do not swap if both of the qubits are None (do not swap empty boxes)
-        for edge in self.G.edges():  
-            #Check: do we have empty boxes? then do not swap
-            if (self.G.edges[edge]['label'] != "quantum"):
-                if (self.qm.get_ball(edge[0]) == None and self.qm.get_ball(edge[1]) == None):
-                    self.G.edges[edge]['mask_swap'] = False 
-    
+        # Find the boxes corresponding to ball1 and ball2
+        box1 = self.qm.get_box(ball1)
+        box2 = self.qm.get_box(ball2)
 
-        # now check link by link whether tele-qubit is available (hard constraints)
-        for edge in self.G.edges():  
-            #Check: telequbit should have EPR's one 1 side, also the other EPR half should not have cooldown positive
-            if (self.G.edges[edge]['label'] != "quantum"):
-                #check 1 should have half EPR in one side
-                if self.qm.get_ball(edge[0]) not in self.qm.EPR_pairs and self.qm.get_ball(edge[1]) not in self.qm.EPR_pairs:  #"tele-qubit needs a half of EPR pair."
-                    self.G.edges[edge]['mask_tele_qubit'] = False 
-                #check 2 the other EPR half should be also without cooldown  
-                if self.qm.get_ball(edge[0]) in self.qm.EPR_pairs and self.qm.get_ball(edge[1]) not in self.qm.EPR_pairs:
-                    EPR_box = copy.deepcopy(self.qm.query_EPR_pair(self.qm.get_ball(edge[0])))
-                    EPR_box.remove(edge[0])
-                    other_box = EPR_box[0] #where is the other EPR half
-                    if (self.G.nodes[other_box]['weight'] != 0):     
-                        self.G.edges[edge]['mask_tele_qubit'] = False #tele-qubit cannot be performed due to cooldown"
-                elif self.qm.get_ball(edge[1]) in self.qm.EPR_pairs and self.qm.get_ball(edge[0]) not in self.qm.EPR_pairs:
-                    EPR_box = copy.deepcopy(self.qm.query_EPR_pair(self.qm.get_ball(edge[1])))
-                    EPR_box.remove(edge[1])
-                    other_box = EPR_box[0] #where is the other EPR half
-                    if (self.G.nodes[other_box]['weight'] != 0):     
-                        self.G.edges[edge]['mask_tele_qubit'] = False #tele-qubit cannot be performed due to cooldown"
-                #check 3 added later - it implements the soft constraint for efficiency and it cannot implement a telequbit to teleport an empty qubit
-                if (self.qm.get_ball(edge[0]) == None or self.qm.get_ball(edge[1]) == None):
-                    self.G.edges[edge]['mask_tele_qubit'] = False # tele-qubit better not be performed since we teleport empty qubits
-            
-    
-            else: #Check whether generate is possible
-                if (self.qm.get_ball(edge[0]) != None or self.qm.get_ball(edge[1]) != None):    #"GENERATE can only be performed on empty link qubits."
-                    self.G.edges[edge]['mask_generate'] = False  
-                if len(self.qm.EPR_pool) == 0:                                                  #No more EPR IDs available in the pool.
-                    self.G.edges[edge]['mask_generate'] = False  
+        # Calculate the shortest path between the boxes
+        shortest_path = nx.shortest_path(self.pathfinding_G, source=box1, target=box2, weight='weight')
 
-    
-        # Generate mask! Now mask as a vector of 0s and 1s should be created
-        # First handle 'simple' links
-        for edge in self.G.edges(data=True):  # Include edge data in the iteration
-            if edge[2]['label'] != "quantum":  # Check if the label is 'simple'
-                mask.append(int(edge[2]['mask_swap']))  # Append 'mask_swap' first
-                mask.append(int(edge[2]['mask_tele_qubit']))  # Then append 'mask_tele_qubit'
+        action_list = []
+        ignore_next = False
+        # Generate action list for swapping qubits
+        for i in range(len(shortest_path)-1):
+            # find nodes we are swapping and potential next-next box for EPR pair checking
+            box1 = shortest_path[i]
+            box2 = shortest_path[i + 1] if i + 1 < len(shortest_path) else None
+            box2_next = shortest_path[i + 2] if i + 2 < len(shortest_path) else None
 
-        # Then handle 'quantum' links (or any link that is not 'simple')
-        for edge in self.G.edges(data=True):  # Reiterate to maintain the order
-            if edge[2]['label'] == "quantum":  # Check if the label is quantum
-                mask.append(int(edge[2].get('mask_generate', False)))  # Append 'mask_generate'
+            # check if ball in box2 belongs to EPR pair, if so check if next swap is between a EPR pair if so add teleport qubit action
+            in_epr1, epr_id1 = self.qm.ball_in_epr_pairs(self.qm.box_to_ball(box2))
+            in_epr2, epr_id2 = self.qm.ball_in_epr_pairs(self.qm.box_to_ball(box2))
+            if in_epr1 and in_epr2 and epr_id1 == epr_id2:
+                action_list.append({'edge': ( box1, box2), 'action': 'tele-qubit'})
+                ignore_next = True # dont swap the next qubit as that is already done by tele-qubit
+            elif not ignore_next:
+                action_list.append({'edge': ( box1, box2), 'action': 'swap'})
+            else:
+                ignore_next = False # after ignore swaps can occur again
 
-                #print(edge, int(edge[2]['mask_generate']))
-
-        mask = [1] + mask # the 1 at the beginning symbolizes the 'stop' action which is always available.
-        # Now 'mask' contains the ordered values as requested
-        return mask       
+        return action_list
 
 
-    #!decodes the action number to the actual action
-    #!TODO: this will also have to be changed since our action differ now
-    def decode_action_fromNum(self, action_num):  #decode a number to the correct action using the self.G.edges command and that first we have swap and then tele-qubit - then we have the generate actions
-        # Determine the corresponding edge and action by making the same ordering as how the mask was generated
-        edge_action_pairs = []
-        for edge in self.G.edges(data=True):
-            if edge[2]['label'] != "quantum":
-                edge_action_pairs.append((edge, 'SWAP'))
-                edge_action_pairs.append((edge, 'tele-qubit'))
-        for edge in self.G.edges(data=True):  
-            if edge[2]['label'] == "quantum":  # Check if the label is quantum
-                edge_action_pairs.append((edge, 'GENERATE'))
-        #The selected edge and action
-        edge_action_pairs = [([], 'stop')] + edge_action_pairs #exacty as how the mask created the action 'stop' - at the beginning
-        selected_edge, selected_action = edge_action_pairs[action_num]
-        action = {'edge': selected_edge[:2], 'action': selected_action}  # edge is a tuple (u, v), action is a string (we slice the first 2 since the selected edge has also the labels due to data=true argument)
-        return action 
-
-
-    # step the emulator given a specific action
+    #!step the emulator given a specific action
+    # TODO: test, may have to change when scores are performed as now they ignore cd (behave like they have priority) but this may not be desired
     def step_given_action(self, action_num):
 
         matching_scores = [] # here we will store the edges that were picked with the autocomplete method of scoring (scores and tele-gates automatically done after an action)
         reward = 0
         #self.cur_mask = self.calculate_mask() # assume that the mask has been updated before you come here - at the initilization we have the initial mask
     
-        taken_action = self.decode_action_fromNum(action_num)
-        cur_state = copy.deepcopy(self)           
+        taken_actions = self.decode_action_fromNum(action_num)
+        taken_action = taken_actions.pop(0)          
         self.perform_action(taken_action['action'], taken_action['edge'])  #make action and change self (state)
+
+        # add rest of actions to a queue
+        self.action_queues.append(taken_actions)
+
+        # check action queues for action which can now happen
+        for queue in self.action_queues:
+            if self.is_action_possible(queue[0]['edge']):
+                taken_action = queue.pop(0)
+                self.perform_action(taken_action['action'], taken_action['edge'])
 
         # Fill any scores or tele-gates that can happen immediately after the action of this time slot
         matching_scores = []  #which links were triggered for scores and telegate
         matching_scores,cur_reward = self.fill_matching(matching_scores)   ## Here we auto fill with the scores and tele-gates! The possible scores and tele-gate actually are implemented here automatically!
         reward += cur_reward                   
-        
         
         self.distance_metric = self.calculate_distance_metric() # this metric decides the moving reward - what actions did make the qubits that should come together closer?
         dif_score = 0
@@ -422,9 +409,6 @@ class QuantumEvnironment():
         elif (action_num == 0): #we did stop
             reward = Constants.REWARD_STOP
         self.distance_metric_prev = self.distance_metric #the previous for the next one
-
-    
-        self.mask = self.get_mask()  # SOS UPDATE the mask with the new changes/new state
         
         flagSuccess = False
         if len(self.my_DAG.DAG.nodes) == 0 : 
@@ -539,7 +523,7 @@ class QuantumEvnironment():
 
 
     #!convert from the actual state to a state vector as the RL agent wants it
-    def convert_self_to_state_vector(self):
+    def get_qubit_location_vector(self):
         # Initialize a list with None (or a placeholder) for each possible index
         my_list = [-1] * (self.qm.numNodes) 
         # Populate the list using dictionary keys as indices
@@ -561,18 +545,13 @@ class QuantumEvnironment():
         return state_vector
 
 
-
-
-
-
     #network update each time (each_time_step)
     def RL_step(self, action_num):   #action will be a single non-negetive integer in range [0, action_size_val]
     
         reward = 0
         
         reward, self.state_object, successfulDone = self.step_given_action(action_num)
-        self.state = np.array(self.convert_self_to_state_vector())  # create the initial state vector from the init state object as the NN requires it
-        self.mask = np.array(self.get_mask())
+        self.mask, self.state = self.update_state_vector_and_mask()
         
         if successfulDone:
             print("When game won, state is: ", self.state)

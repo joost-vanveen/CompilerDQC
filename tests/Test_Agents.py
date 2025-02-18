@@ -17,7 +17,7 @@ from environments.Four_Rooms_Environment import Four_Rooms_Environment
 from agents.hierarchical_agents.SNN_HRL import SNN_HRL
 from agents.actor_critic_agents.TD3 import TD3
 from agents.Trainer import Trainer
-from utilities.data_structures.Config import Config
+from config.Config import Config
 from agents.DQN_agents.DQN import DQN
 import numpy as np
 import torch
