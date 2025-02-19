@@ -12,12 +12,9 @@ from QuantumEnvironment.QPUClass import QPUClass
 from QuantumEnvironment.DAGClass import DAGClass
 from QuantumEnvironment.QubitMappingClass import QubitMappingClass
 from Constants import Constants
-from SystemStateClass import SystemStateClass
 
 
-
-
-class QuantumEvnironment():
+class QuantumEvnironmentClass():
     
     def __init__(self):
 

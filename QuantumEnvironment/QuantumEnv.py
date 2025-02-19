@@ -10,7 +10,7 @@ from Constants import Constants
 #random.seed()  #choose your lucky number here and fix seed
 
 #from QuatumEnvironment_dummy import QuantumEvnironment     #import the distributed quantum computing simulation environment
-from QuatumEnvironment import QuantumEvnironment     #import the distributed quantum computing simulation environment
+from QuantumEnvironmentClass import QuantumEvnironmentClass     #import the distributed quantum computing simulation environment
 
 import copy
 import csv
@@ -36,7 +36,7 @@ class EnvUpdater(gym.Env):      #gym is an opanAI's environment generator tools.
 
     def __init__(self, completion_deadline): 
 
-        self.quantumEnv = QuantumEvnironment()
+        self.quantumEnv = QuantumEvnironmentClass()
         self.state = self.quantumEnv.state   #state at the beginning decided on by the processor and DAG configurations
         self.mask = self.quantumEnv.mask   #mask at the beginning decided on by the processor and DAG configurations, value always 1 if no masking used
         

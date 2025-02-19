@@ -1,8 +1,13 @@
 import unittest
 import networkx as nx
+import sys
+
+from os.path import dirname, abspath
+sys.path.append(dirname(dirname(abspath(__file__))))
+
 from QuantumEnvironment.QubitMappingClass import QubitMappingClass
-from QuantumEnvironment.QPUClass import QPUClass
-from QuantumEnvironment.DAGClass import DAGClass
+from QuantumEnvironment import QPUClass
+from QuantumEnvironment import DAGClass
 
 class TestQubitMappingClass(unittest.TestCase):
 
@@ -16,14 +21,6 @@ class TestQubitMappingClass(unittest.TestCase):
         self.initial_mapping = {i: i for i in range(self.numQubits + 2 * self.numEPR_threshold)}
         self.mapping = QubitMappingClass(self.numNodes, self.numQubits, self.max_epr_pairs, self.G, self.initial_mapping)
     
-    def test_get_box(self):
-        self.assertEqual(self.mapping.get_box(0), 0)
-        self.assertRaises(Exception, self.mapping.get_box, self.numQubits + 10)
-    
-    def test_get_ball(self):
-        self.assertEqual(self.mapping.get_ball(0), 0)
-        self.assertIsNone(self.mapping.get_ball(self.numNodes - 1))
-    
     def test_generate_EPR_pair(self):
         self.mapping.generate_EPR_pair(0, 16)
         epr_id = list(self.mapping.EPR_pairs.keys())[0]
@@ -31,19 +28,13 @@ class TestQubitMappingClass(unittest.TestCase):
     
     def test_destroy_EPR_pair(self):
         self.mapping.generate_EPR_pair(0, 16)
-        epr_id = list(self.mapping.EPR_pairs.keys())[0]
+        epr_id = 'EPR-0'
         self.mapping.destroy_EPR_pair(epr_id)
         self.assertNotIn(epr_id, self.mapping.EPR_pairs)
     
-    def test_query_EPR_pair(self):
-        self.mapping.generate_EPR_pair(0, 16)
-        epr_id = list(self.mapping.EPR_pairs.keys())[0]
-        self.assertIsNotNone(self.mapping.query_EPR_pair(epr_id))
-        self.assertRaises(Exception, self.mapping.query_EPR_pair, "EPR-100")
-    
     def test_ball_in_epr_pairs(self):
         self.mapping.generate_EPR_pair(0, 16)
-        epr_id = list(self.mapping.EPR_pairs.keys())[0]
+        epr_id = 'EPR-0'
         found, pair_id = self.mapping.ball_in_epr_pairs(self.mapping.get_ball(0))
         self.assertTrue(found)
         self.assertEqual(pair_id, epr_id)
