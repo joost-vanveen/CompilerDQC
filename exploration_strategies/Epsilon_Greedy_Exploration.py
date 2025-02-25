@@ -25,9 +25,9 @@ class Epsilon_Greedy_Exploration(Base_Exploration_Strategy):
     def perturb_action_for_exploration_purposes(self, action_info):
         """Perturbs the action of the agent to encourage exploration"""
         action_values = action_info["action_values"]
-        mask_vector =  action_info["mask_vector"] 
         turn_off_exploration = action_info["turn_off_exploration"]
         episode_number = action_info["episode_number"]
+        current_state = action_info["current_state"]
         if turn_off_exploration and not self.notified_that_exploration_turned_off:
             print(" ")
             print("Exploration has been turned OFF")
@@ -37,23 +37,23 @@ class Epsilon_Greedy_Exploration(Base_Exploration_Strategy):
         #epsilon = self.get_updated_epsilon_exploration_dynamic(action_info)
         #print(epsilon)
         
-        #print(action_values)
         if (random.random() > epsilon or turn_off_exploration) and (episode_number >= self.random_episodes_to_run):
             #print('argmax employed')
-            return torch.argmax(action_values*mask_vector).item()
+            return torch.argmax(action_values).item()
         #print('random section') 
         
-        randomized_but_mask_filtered_action = self.obtain_randomized_masked_action(mask_vector)
+        if (random.random() > epsilon or turn_off_exploration) and (episode_number >= self.random_episodes_to_run):
+            return torch.argmax(action_values).item()
+
+        # Pick a completely random action
+        # TODO: change this such that it picks a valid action and not a completly random one
+        random_values = list(range(action_values.shape[1]))
+        for i, value in enumerate(current_state):
+            if value == float('inf'):
+                random_values.remove(i+1)
         
-        return  randomized_but_mask_filtered_action.item() #np.random.randint(0, action_values.shape[1])
+        return random.choice(random_values)
     
-    def obtain_randomized_masked_action(self, mask_vector):
-        mask = mask_vector[0]
-        non_zero_index_mask = torch.nonzero(mask)
-        weights = torch.ones(non_zero_index_mask.size(0))
-        index = torch.multinomial(weights, 1)
-        randaction = non_zero_index_mask[index]
-        return randaction
               
     def get_updated_epsilon_exploration_dynamic(self, action_info, epsilon=1.0):
         """Gets the probability that we just pick a random action. This probability decays the more episodes we have seen"""

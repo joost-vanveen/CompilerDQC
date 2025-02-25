@@ -5,7 +5,7 @@ import sys
 from os.path import dirname, abspath
 sys.path.append(dirname(dirname(abspath(__file__))))
 
-from QuantumEnvironment.QubitMappingClass import QubitMappingClass
+from QuantumEnvironment import QubitMappingClass
 from QuantumEnvironment import QPUClass
 from QuantumEnvironment import DAGClass
 
@@ -15,10 +15,10 @@ class TestQubitMappingClass(unittest.TestCase):
         self.my_arch = QPUClass()
         self.G = self.my_arch.G
         self.my_DAG = DAGClass()
-        self.max_epr_pairs = 9
-        self.numQubits = self.numQubits
+        self.max_epr_pairs = 5
+        self.numQubits = self.my_DAG.numQubits
         self.numNodes = self.my_arch.numNodes
-        self.initial_mapping = {i: i for i in range(self.numQubits + 2 * self.numEPR_threshold)}
+        self.initial_mapping = {i: i for i in range(self.numQubits + 2 * self.max_epr_pairs)}
         self.mapping = QubitMappingClass(self.numNodes, self.numQubits, self.max_epr_pairs, self.G, self.initial_mapping)
     
     def test_generate_EPR_pair(self):
@@ -40,10 +40,11 @@ class TestQubitMappingClass(unittest.TestCase):
         self.assertEqual(pair_id, epr_id)
     
     def test_generate_random_initial_mapping(self):
-        mapping = self.mapping.generate_random_initial_mapping(self.G)
-        self.assertIsInstance(mapping, dict)
-        self.assertGreaterEqual(len(mapping), self.numQubits + 2 * self.numEPR_threshold)
-        self.assertRaises(ValueError, QubitMappingClass, self.numQubits - 1, self.numQubits, self.numEPR_threshold, self.G, None)
+        random_mapping = QubitMappingClass(self.numNodes, self.numQubits, self.max_epr_pairs, self.G)
+        self.assertEqual(random_mapping.get_ball(0), self.numQubits)
+        self.assertEqual(random_mapping.get_ball(16), self.numQubits+1)
+        for i in range(self.numQubits+2* self.max_epr_pairs):
+            self.assertIsNotNone(random_mapping.get_box(i))
 
 if __name__ == "__main__":
     unittest.main()

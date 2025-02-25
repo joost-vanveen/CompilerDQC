@@ -11,6 +11,7 @@ class Constants:
     REWARD_STOP = -20 
     REWARD_FOR_SWAP = 0
     REWARD_SCORE = 500  
+    REWARD_INVALID_ACTION = -500
 
     NUMQ = 18  # number of qubits for the random dag/circuit
     NUMG = 30  # number of gates for the random dag/circuit

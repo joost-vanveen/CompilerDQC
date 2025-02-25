@@ -37,12 +37,10 @@ class customizedNN(nn.Module):
         #self.relu = nn.ReLU()
         #self.dropout = nn.Dropout(0.1)
         
-    def forward(self,x, mask):
-        
+    def forward(self, x):
         for layer in self.layers:
             x = layer(x)
             
-        x = x * mask          
         return x
     
 

@@ -36,7 +36,6 @@ class DQN(Base_Agent):
                     self.learn()
             self.save_experience()
             self.state = self.next_state #this is to set the state for the next iteration
-            self.mask = self.next_mask
             self.global_step_number += 1
         self.episode_number += 1
 
@@ -45,57 +44,54 @@ class DQN(Base_Agent):
         # PyTorch only accepts mini-batches and not single observations so we have to use unsqueeze to add
         # a "fake" dimension to make it a mini-batch rather than a single observation
         if state is None: state = self.state
+        origin_state = state
         if isinstance(state, np.int64) or isinstance(state, int): state = np.array([state])
         state = torch.from_numpy(state).float().unsqueeze(0).to(self.device)
-        mask = torch.from_numpy(self.mask).float().unsqueeze(0).to(self.device)
-        mask2 = torch.clone(mask)
         #mask = mask + 10000 * (mask - 1)
         if len(state.shape) < 2: state = state.unsqueeze(0)
         self.q_network_local.eval() #puts network in evaluation mode
         with torch.no_grad():
-            action_values = self.q_network_local(state,mask)
+            action_values = self.q_network_local(state)
         self.q_network_local.train() #puts network back in training mode
-                       
         action = self.exploration_strategy.perturb_action_for_exploration_purposes({"action_values": action_values,
-                                                                                    "mask_vector" : mask2,   #mask added
                                                                                     "turn_off_exploration": self.turn_off_exploration,
-                                                                                    "episode_number": self.episode_number})
+                                                                                    "episode_number": self.episode_number,
+                                                                                    "current_state": origin_state})
         self.logger.info("Q values {} -- Action chosen {}".format(action_values, action))
-        if mask[0][action] <= 0:
-            print("WARNING!!: best action has q value 0 or less")
+        
         return action
 
     def learn(self, experiences=None):
         """Runs a learning iteration for the Q network"""
-        if experiences is None: states, masks, actions, rewards, next_states, next_masks, dones = self.sample_experiences() #Sample experiences
-        else: states, masks, actions, rewards, next_states, next_masks, dones = experiences
+        if experiences is None: states, actions, rewards, next_states, dones = self.sample_experiences() #Sample experiences
+        else: states, actions, rewards, next_states, dones = experiences
         # if max(rewards) > 100:
         #     print("max done: ", max(dones))
         #     print("max rewards: ", max(rewards))
-        loss = self.compute_loss(states, masks, next_states, next_masks, rewards, actions, dones)
+        loss = self.compute_loss(states, next_states, rewards, actions, dones)
 
         actions_list = [action_X.item() for action_X in actions ]
 
         self.logger.info("Action counts {}".format(Counter(actions_list)))
         self.take_optimisation_step(self.q_network_optimizer, self.q_network_local, loss, self.hyperparameters["gradient_clipping_norm"])
 
-    def compute_loss(self, states, masks, next_states, next_masks, rewards, actions, dones):
+    def compute_loss(self, states, next_states, rewards, actions, dones):
         """Computes the loss required to train the Q network"""
         with torch.no_grad():
-            Q_targets = self.compute_q_targets(next_states, next_masks, rewards, dones)
-        Q_expected = self.compute_expected_q_values(states, masks, actions)
+            Q_targets = self.compute_q_targets(next_states, rewards, dones)
+        Q_expected = self.compute_expected_q_values(states, actions)
         loss = F.mse_loss(Q_expected, Q_targets)
         return loss
 
-    def compute_q_targets(self, next_states, next_mask, rewards, dones):
+    def compute_q_targets(self, next_states, rewards, dones):
         """Computes the q_targets we will compare to predicted q values to create the loss to train the Q network"""
-        Q_targets_next = self.compute_q_values_for_next_states(next_states, next_mask)
+        Q_targets_next = self.compute_q_values_for_next_states(next_states)
         Q_targets = self.compute_q_values_for_current_states(rewards, Q_targets_next, dones)
         return Q_targets
 
-    def compute_q_values_for_next_states(self, next_states, next_mask):
+    def compute_q_values_for_next_states(self, next_states):
         """Computes the q_values for next state we will use to create the loss to train the Q network"""
-        Q_targets_next = self.q_network_local(next_states,next_mask).detach().max(1)[0].unsqueeze(1)
+        Q_targets_next = self.q_network_local(next_states).detach().max(1)[0].unsqueeze(1)
         return Q_targets_next
 
     def compute_q_values_for_current_states(self, rewards, Q_targets_next, dones):
@@ -103,9 +99,9 @@ class DQN(Base_Agent):
         Q_targets_current = rewards + (self.hyperparameters["discount_rate"] * Q_targets_next * (1 - dones))
         return Q_targets_current
 
-    def compute_expected_q_values(self, states, mask, actions):
+    def compute_expected_q_values(self, states, actions):
         """Computes the expected q_values we will use to create the loss to train the Q network"""
-        Q_expected = self.q_network_local(states, mask).gather(1, actions.long()) #must convert actions to long so can be used as index
+        Q_expected = self.q_network_local(states).gather(1, actions.long()) #must convert actions to long so can be used as index
         return Q_expected
 
     def locally_save_policy(self):
@@ -124,5 +120,5 @@ class DQN(Base_Agent):
     def sample_experiences(self):
         """Draws a random sample of experience from the memory buffer"""
         experiences = self.memory.sample()
-        states, mask, actions, rewards, next_states, next_mask, dones = experiences
-        return states, mask, actions, rewards, next_states, next_mask, dones
+        states, actions, rewards, next_states, dones = experiences
+        return states, actions, rewards, next_states, dones

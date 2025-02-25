@@ -10,7 +10,7 @@ from Constants import Constants
 #random.seed()  #choose your lucky number here and fix seed
 
 #from QuatumEnvironment_dummy import QuantumEvnironment     #import the distributed quantum computing simulation environment
-from QuantumEnvironmentClass import QuantumEvnironmentClass     #import the distributed quantum computing simulation environment
+from .QuantumEnvClass import QuantumEnvironmentClass     #import the distributed quantum computing simulation environment
 
 import copy
 import csv
@@ -36,11 +36,10 @@ class EnvUpdater(gym.Env):      #gym is an opanAI's environment generator tools.
 
     def __init__(self, completion_deadline): 
 
-        self.quantumEnv = QuantumEvnironmentClass()
+        self.quantumEnv = QuantumEnvironmentClass()
         self.state = self.quantumEnv.state   #state at the beginning decided on by the processor and DAG configurations
-        self.mask = self.quantumEnv.mask   #mask at the beginning decided on by the processor and DAG configurations, value always 1 if no masking used
         
-        self.action_dim = self.quantumEnv.generate_action_size()  #environment provides action space size
+        self.action_dim = self.quantumEnv.action_size  #environment provides action space size
         self.action_list = spaces.Discrete(self.action_dim)   #discrete action space
         self.action_space = self.action_list
         
@@ -75,9 +74,8 @@ class EnvUpdater(gym.Env):      #gym is an opanAI's environment generator tools.
         
         
     
-        reward, new_state, new_mask, successfulDone = self.quantumEnv.RL_step(action)
+        reward, new_state, successfulDone = self.quantumEnv.RL_step(action)
         self.state = new_state 
-        self.mask = new_mask
         steptemp = copy.deepcopy(self.stepCount)
         steptemp_dummy = copy.deepcopy(self.dummy_stepCount)
         
@@ -117,15 +115,14 @@ class EnvUpdater(gym.Env):      #gym is an opanAI's environment generator tools.
         # print("new_mask: ", new_mask)
         # print("reward: ", reward)
  
-        return new_state, new_mask, reward, done, {}       #supposed to return new state, reward and done to the learning agent
+        return new_state, reward, done, {}       #supposed to return new state, reward and done to the learning agent
 
 
     def reset(self):
         self.quantumEnv.environment_reset()  
         self.state = self.quantumEnv.state
-        self.mask = self.quantumEnv.mask
         #print("reset_was_called")
-        return np.array(self.state), np.array(self.mask)
+        return np.array(self.state)
 
 
     def deadline_monitor(self, successfulDone):

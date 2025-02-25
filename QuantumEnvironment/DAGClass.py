@@ -74,7 +74,7 @@ class DAGClass():
     def compute_topo_order(self):
         # Get nodes in topological order
         topo_order = list(nx.topological_sort(self.DAG))
-        print("topo_order is: ", topo_order)
+        # print("topo_order is: ", topo_order)
         # Function to compute layer of each node for better visualization
         # Compute layers of nodes
         return topo_order

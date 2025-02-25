@@ -20,7 +20,7 @@ class QubitMappingClass():
         self.ball_to_box = {}  # ball to box mapping
         self.box_to_ball = {}  # box to ball mapping
         self.EPR_pairs = {}  # EPR pairs mapping
-        self.EPR_pool = [f"EPR-{i}" for i in range(numEPR_threshold)]  # Pool of EPR IDs
+        self.EPR_pool = [f"EPR-{i}" for i in range(self.numEPR_threshold)]  # Pool of EPR IDs
 
         if initial_mapping is None:
             initial_mapping = self.generate_random_initial_mapping(G)
@@ -28,7 +28,7 @@ class QubitMappingClass():
         # Initialize with given mapping
         if initial_mapping is not None:
             for ball, box in initial_mapping.items():
-                if (ball > numQubits+2*self.numEPR_threshold-1 or box > numNodes - 1):
+                if (ball > numQubits+(2*self.numEPR_threshold)-1 or box > numNodes - 1):
                     raise Exception("Ball or box out of limit.")
                 self.ball_to_box[ball] = box
                 self.box_to_ball[box] = ball
@@ -78,14 +78,14 @@ class QubitMappingClass():
             raise Exception(f"No EPR pair with ID {epr_id} exists.")
         # Return the boxes associated with the EPR pair
         # Fetch the current boxes associated with the EPR pair from ball_to_box mapping
-        boxes = self.ball_to_box[epr_id]
-        # Update the EPR_pairs mapping
-        self.EPR_pairs[epr_id] = boxes
+        balls = self.EPR_pairs[epr_id]
+        boxes = (self.get_box(balls[0]), self.get_box(balls[1]))
         # Return the updated boxes
         return boxes
     
     def ball_in_epr_pairs(self, ball):
-        for epr_id, (ball1, ball2) in self.EPR_pairs:
+        for epr_id in self.EPR_pairs:
+            (ball1, ball2)  = self.EPR_pairs[epr_id]
             if ball == ball1 or ball == ball2:
                 return True, epr_id  # Ball is part of an EPR pair
         return False, None  # Ball is not part of any EPR pair
