@@ -25,8 +25,13 @@ class QuantumEnvironmentClass():
         self.my_DAG = DAGClass()
 
         self.num_entanglement_links = self.my_arch.numEdgesQuantum
-        self.max_epr_pairs = 5
+        self.max_epr_pairs = 4
         self.qubit_amount = self.my_DAG.numQubits + 2*self.max_epr_pairs
+
+        self.DAG_left = self.my_DAG.numGates
+        self.swap_amount = 0
+        self.EPR_amount = 0
+        self.telequbit_amount = 0
 
         self.action_queues = []
 
@@ -52,8 +57,8 @@ class QuantumEnvironmentClass():
     
     #!this function generates the action space size based on possible actions that could be taken
     def generate_action_and_state_size(self):
-        action_size = 1 + (self.qubit_amount * (self.qubit_amount - 1)) + self.num_entanglement_links #1 for cool off, then amount of qubit pairs plus amount of quantum links
-        state_size = self.num_entanglement_links + ((self.qubit_amount * (self.qubit_amount - 1)) // 2) + self.my_DAG.numGates # amount of qubits pairs plus the size of the DAG
+        action_size = 1 + (self.qubit_amount * (self.qubit_amount - 1)) - (self.max_epr_pairs*2 * (self.max_epr_pairs*2 - 1)) + self.num_entanglement_links #1 for cool off, then amount of qubit pairs plus amount of quantum links
+        state_size = self.num_entanglement_links + (self.qubit_amount * (self.qubit_amount - 1)) + (3*self.my_DAG.numGates) # amount of qubits pairs plus the size of the DAG
         return action_size, state_size
     
 
@@ -76,7 +81,10 @@ class QuantumEnvironmentClass():
 
         #Initialize the DAG - quantum circuit
         self.my_DAG = DAGClass()      ##HERE WE WILL CHANGE THE DAG IN EVERY TIME SLOT BUT FOR NOW WE FIX A SINGLE ONE - NOTE THAT THE STATE SPACE WILL CHANGE WITH NONE AT THE END BUT WE WILL HAVE A FIXED MAX GATE NUMBER
-
+        self.DAG_left = self.my_DAG.numGates
+        self.swap_amount = 0
+        self.EPR_amount = 0
+        self.telequbit_amount = 0
         self.action_size, self.state_size = self.generate_action_and_state_size()
 
         self.generate_initial_state() 
@@ -88,7 +96,7 @@ class QuantumEnvironmentClass():
     #!checks if the link is not on cooldown  
     def is_action_possible(self, link):
         # Now we need to check both nodes involved in the link
-        return self.G.nodes[link[0]]['weight'] == 0 and self.G.nodes[link[1]]['weight'] == 0 and self.G.edges[link]['label'] != 'quantum'
+        return self.G.nodes[link[0]]['weight'] == 0 and self.G.nodes[link[1]]['weight'] == 0
 
     #!reduces all cooldown in the graph since advance to next timestep
     def reduce_cooldowns(self):
@@ -113,13 +121,15 @@ class QuantumEnvironmentClass():
             if self.pathfinding_G.edges[node1, node2]['label'] == 'quantum':
                 self.pathfinding_G.edges[node1, node2]['weight'] = float('inf')
                 ball1, ball2 = self.qm.get_ball(node1), self.qm.get_ball(node2)
-                if ball1 != None and ball2 != None:
-                    if ball1 >= self.my_DAG.numQubits and ball2 >= self.my_DAG.numQubits and (ball1, ball2) not in self.qm.EPR_pairs.values() and (ball1, ball2) not in self.qm.EPR_pairs.values():
-                        state_vector.append(1)
+                if ball1 != None and ball2 != None and self.G.nodes[node1]['weight'] == 0 and self.G.nodes[node2]['weight'] == 0:
+                    in_epr1, epr_id1 = self.qm.ball_in_epr_pairs(ball1)
+                    in_epr2, epr_id2 = self.qm.ball_in_epr_pairs(ball2)
+                    if ball1 >= self.my_DAG.numQubits and ball2 >= self.my_DAG.numQubits and not in_epr1 and not in_epr2:
+                        state_vector.append(2)
                     else:
-                        state_vector.append(float('inf'))
+                        state_vector.append(-2)
                 else:
-                    state_vector.append(float('inf'))
+                    state_vector.append(-2)
             else:
                 # Set the weight to 3 if the qubits are not on cooldown
                 if self.pathfinding_G.nodes[node1]['weight'] > 0 or self.pathfinding_G.nodes[node2]['weight'] > 0:
@@ -144,6 +154,8 @@ class QuantumEnvironmentClass():
                 # Find the boxes corresponding to ball1 and ball2
                 box1 = self.qm.get_box(ball1)
                 box2 = self.qm.get_box(ball2)
+                if not nx.has_path(self.pathfinding_G, source=box1, target=box2):
+                    raise ValueError("Boxes are no longer connected")
                 # Calculate the shortest path
                 try:
                     shortest_path = nx.shortest_path(self.pathfinding_G, source=box1, target=box2, weight='weight')
@@ -154,9 +166,21 @@ class QuantumEnvironmentClass():
                 except nx.NetworkXNoPath:
                     # In case there is no path between the two nodes
                     path_length = float('inf')
+
+                if path_length == float('inf'):
+                    path_length = -2
                 
                 # Add pathlength between pair to state
                 state_vector.append(path_length)
+
+        single_numbers_topo_list = [element for tup in self.my_DAG.topo_order for element in tup]
+        state_vector = state_vector + single_numbers_topo_list
+
+        if len(state_vector) < self.state_size:
+            #print("test")
+            state_vector.extend([-2] * (self.state_size - len(state_vector)))
+
+        #print(state_vector)
 
         return state_vector
     
@@ -199,16 +223,21 @@ class QuantumEnvironmentClass():
         self.G.nodes[link[1]]['weight'] = Constants.COOLDOWN_GENERATE
         if random.random() < Constants.ENTANGLEMENT_PROBABILITY:  
             self.qm.generate_EPR_pair(*link)
+        self.EPR_amount += 1
+
+        print("Generated EPR pair")
 
 
     #!performs the swap action
     # TODO: can mostly remain the same only the EPR part has to be updated
     def swap(self, link):
         if self.G.edges[link]['label'] == "quantum":
+            print("Pathfinding: ", self.pathfinding_G.edges)
             raise ValueError("SWAP cannot be performed on quantum links.")  
         
         max_cd = max(self.G.nodes[link[0]]['weight'], self.G.nodes[link[1]]['weight'])
         self.virtual_swap(link)
+        self.swap_amount += 1
 
         self.G.nodes[link[0]]['weight'] = max_cd + Constants.COOLDOWN_SWAP
         self.G.nodes[link[1]]['weight'] = max_cd + Constants.COOLDOWN_SWAP
@@ -251,6 +280,7 @@ class QuantumEnvironmentClass():
                 self.G.nodes[link[1]]['weight'] = max_cd + Constants.COOLDOWN_SCORE # since scores happen automatically
                 performed_score = True
                 print("-----we scored", ball1, ball2,"----------")
+                self.DAG_left -= 1
                 return performed_score
         if (not performed_score):
             raise ValueError("could not score.")
@@ -259,7 +289,13 @@ class QuantumEnvironmentClass():
     #!performs the stop action
     #!TODO: look into merging reduce cooldown into this func to reduce code size since it is only used here
     def stop(self):
-        self.reduce_cooldowns()
+        self.min_cd = 1000
+        for node in self.G.nodes:
+            if self.G.nodes[node]['weight'] > 0 and self.G.nodes[node]['weight'] < self.min_cd:
+                self.min_cd = self.G.nodes[node]['weight']   
+
+        for i in range(self.min_cd):
+            self.reduce_cooldowns()
 
 
     #!performs the tele_gate action
@@ -294,6 +330,7 @@ class QuantumEnvironmentClass():
                 self.G.nodes[link[0]]['weight'] = max_cd + Constants.COOLDOWN_TELE_GATE
                 self.G.nodes[link[1]]['weight'] = max_cd + Constants.COOLDOWN_TELE_GATE
                 print("-------we telegate", ball1_frontier, ball2_frontier,"----------")
+                self.DAG_left -= 1
                 flag = True
                 return flag
         if (not flag):
@@ -330,6 +367,7 @@ class QuantumEnvironmentClass():
             self.virtual_swap((box1, other_box))    # box1 contains the qubit and other box contains the box of the EPR half
             max_cd = max(self.G.nodes[link[0]]['weight'], self.G.nodes[link[1]]['weight'], self.G.nodes[other_box]['weight'])
             self.G.nodes[other_box]['weight'] = max_cd + Constants.COOLDOWN_TELE_QUBIT
+        self.telequbit_amount += 1
         self.G.nodes[link[0]]['weight'] = max_cd + Constants.COOLDOWN_TELE_QUBIT
         self.G.nodes[link[1]]['weight'] = max_cd + Constants.COOLDOWN_TELE_QUBIT
 
@@ -354,7 +392,8 @@ class QuantumEnvironmentClass():
             for edge in self.G.edges(data=True):  
                 if edge[2]['label'] == "quantum":  # Check if the label is quantum
                     generate_actions.append({'edge': edge[:2], 'action': 'GENERATE'})
-                    if self.qm.get_ball(edge[0]) < self.my_DAG.numQubits or self.qm.get_ball(edge[1]) < self.my_DAG.numQubits:
+                    if self.state[action_num-1] == -2:
+                        print("Choose generate eventhough it wasnt possible")
                         path_length = float('inf')
             return [generate_actions[action_num-1]], path_length
         
@@ -370,12 +409,13 @@ class QuantumEnvironmentClass():
             shortest_path = nx.shortest_path(self.pathfinding_G, source=box1, target=box2, weight='weight')
             path_length = nx.path_weight(self.pathfinding_G, shortest_path, weight='weight')    # should only consider edge weight so cooldowns dont matter
             # make path between EPR pairs halves inf since they cannot swap with eachother
-            if path_length == 2 or path_length == float('inf'):
-                path_length = float('inf')
-                return [], path_length
+            if (self.qm.get_ball(shortest_path[0]), self.qm.get_ball(shortest_path[1])) in self.qm.EPR_pairs.values() or (self.qm.get_ball(shortest_path[1]), self.qm.get_ball(shortest_path[0])) in self.qm.EPR_pairs.values():
+                    path_length = float('inf')
         except nx.NetworkXNoPath:
             # In case there is no path between the two nodes
             path_length = float('inf')
+        
+        if path_length == float('inf'):
             return [], path_length
 
         action_list = []
@@ -411,19 +451,15 @@ class QuantumEnvironmentClass():
     
         # Find all actions corresponding to swapping qubit pair
         taken_actions, path_length = self.decode_action_fromNum(action_num)
+        #print("State is :", self.state, " from mapping ", self.get_qubit_location_vector())
+        #print("Got actions ", taken_actions, " from action number ", action_num)
 
         if path_length == float('inf'):
+            print("!!! AGENT CHOSE INVALID ACTION DUE TO PATHLENGTH : ", taken_actions, " from actions number, ", action_num, " !!!")
             return Constants.REWARD_INVALID_ACTION, False
-        
-        for taken_action in taken_actions: 
-            if taken_action['action'] != 'stop':
-                if not self.is_action_possible(taken_action['edge']):
-                    #print("!!! AGENT CHOSE INVALID ACTION !!!")
-                    return Constants.REWARD_INVALID_ACTION, False
 
         # Execute all actions for swapping pair
-        for taken_action in taken_actions:  
-            #print(taken_action, "from action number: ", action_num, "amount mapped", len(self.qm.ball_to_box), len(self.qm.box_to_ball))     
+        for taken_action in taken_actions:     
             self.perform_action(taken_action['action'], taken_action['edge'])  #make action and change self (state)
 
         # Fill any scores or tele-gates that can happen immediately after the action of this time slot
@@ -431,11 +467,11 @@ class QuantumEnvironmentClass():
         matching_scores,cur_reward = self.fill_matching(matching_scores)   ## Here we auto fill with the scores and tele-gates! The possible scores and tele-gate actually are implemented here automatically!
         reward += cur_reward                   
         
-        self.distance_metric = self.calculate_distance_metric() # this metric decides the moving reward - what actions did make the qubits that should come together closer?
+        #self.distance_metric = self.calculate_distance_metric() # this metric decides the moving reward - what actions did make the qubits that should come together closer?
         dif_score = 0
         if (reward == 0 and action_num != 0): #it did not score and it is not stop
             dif_score = self.distance_metric_prev - self.distance_metric
-            reward = dif_score * Constants.DISTANCE_MULT 
+            reward = dif_score * Constants.DISTANCE_MULT + Constants.REWARD_FOR_SWAP
         elif (action_num == 0): #we did stop
             reward = Constants.REWARD_STOP
         self.distance_metric_prev = self.distance_metric #the previous for the next one
@@ -445,6 +481,7 @@ class QuantumEnvironmentClass():
             reward = Constants.REWARD_EMPTY_DAG
             flagSuccess = True
         #return reward, self, nx.is_empty(self.my_DAG.DAG)
+        #print(reward)
         return reward, flagSuccess
         
 

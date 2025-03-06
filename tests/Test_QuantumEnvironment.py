@@ -19,12 +19,6 @@ class TestQuantumEnvironmentClass(unittest.TestCase):
         """Initialize a test instance of QuantumEnvironmentClass."""
         self.env = QuantumEnvironmentClass()
     
-    def test_get_qubit_pairs(self):
-        """Test if all possible qubit pairs are correctly generated."""
-        pairs = self.env.get_qubit_pairs()
-        expected_pairs = [(i, j) for i in range(self.env.qubit_amount - 1) for j in range(i + 1, self.env.qubit_amount)]
-        self.assertEqual(pairs, expected_pairs)
-    
     def test_environment_reset(self):
         """Test if the environment resets correctly."""
         self.env.generate_initial_state = MagicMock()
@@ -52,6 +46,14 @@ class TestQuantumEnvironmentClass(unittest.TestCase):
         self.assertEqual(self.env.G.nodes[1]['weight'], 1)
         self.assertEqual(self.env.G.nodes[2]['weight'], 0)
         self.assertEqual(self.env.G.nodes[3]['weight'], 0)
+
+    def test_stop(self):
+        """Test if cooldowns reduce correctly."""
+        self.env.G.nodes = {1: {'weight': 5}, 2: {'weight': 2}, 3: {'weight': 0}}
+        self.env.stop()
+        self.assertEqual(self.env.G.nodes[1]['weight'], 3)
+        self.assertEqual(self.env.G.nodes[2]['weight'], 0)
+        self.assertEqual(self.env.G.nodes[3]['weight'], 0)
     
     def test_update_state_vector(self):
         """Test if state vector updates correctly."""
@@ -59,7 +61,7 @@ class TestQuantumEnvironmentClass(unittest.TestCase):
         self.assertIsInstance(state_vector, list)
         for i, (ball1, ball2) in enumerate(self.env.pairs):
             if (self.env.qm.get_box(ball1) < 16 and self.env.qm.get_box(ball2) > 15) or (self.env.qm.get_box(ball1) > 15 and self.env.qm.get_box(ball2) < 16):
-                self.assertEqual(state_vector[i+self.env.num_entanglement_links], float("inf"))
+                self.assertEqual(state_vector[i+self.env.num_entanglement_links], -1)
             else:
                 self.assertNotEqual(state_vector[i+self.env.num_entanglement_links], 0)
 
@@ -80,26 +82,19 @@ class TestQuantumEnvironmentClass(unittest.TestCase):
         neighbor_ball = self.env.qm.get_ball(neighbors[0])
         state_vector = self.env.update_state_vector()
 
-        if ball2 > neighbor_ball:
-            initial_distance = state_vector[self.env.pairs.index((neighbor_ball, ball2))+self.env.num_entanglement_links]
-        else:
-            initial_distance = state_vector[self.env.pairs.index((ball2, neighbor_ball))+self.env.num_entanglement_links]
+        initial_distance = state_vector[self.env.pairs.index((neighbor_ball, ball2))+self.env.num_entanglement_links]
 
         while len(self.env.qm.EPR_pairs) != 1:
             self.env.generate((0,16))
-            for i in range(Constants.COOLDOWN_GENERATE):
-                self.env.stop()
+            self.env.stop()
 
         state_vector = self.env.update_state_vector()
 
-        if ball2 > neighbor_ball:
-            epr_distance = state_vector[self.env.pairs.index((neighbor_ball, ball2))+self.env.num_entanglement_links]
-        else:
-            epr_distance = state_vector[self.env.pairs.index((ball2, neighbor_ball))+self.env.num_entanglement_links]
+        epr_distance = state_vector[self.env.pairs.index((neighbor_ball, ball2))+self.env.num_entanglement_links]
 
         self.assertEqual(len(self.env.qm.EPR_pairs), 1)
 
-        self.assertEqual(initial_distance, float('inf'))
+        self.assertEqual(initial_distance, -1)
         self.assertEqual(epr_distance, 5)
 
     def test_telequbit(self):
@@ -109,8 +104,7 @@ class TestQuantumEnvironmentClass(unittest.TestCase):
 
         while len(self.env.qm.EPR_pairs) != 1:
             self.env.generate((0,16))
-            for i in range(Constants.COOLDOWN_GENERATE):
-                self.env.stop()
+            self.env.stop()
 
         self.env.tele_qubit((0,1))
 
@@ -122,8 +116,7 @@ class TestQuantumEnvironmentClass(unittest.TestCase):
         """Test if a valid action executes correctly."""
         while len(self.env.qm.EPR_pairs) != 1:
             self.env.generate((0,16))
-            for i in range(Constants.COOLDOWN_GENERATE):
-                self.env.stop()
+            self.env.stop()
 
         self.env.update_state_vector()
         ball2 = self.env.qm.get_ball(2)
@@ -147,6 +140,9 @@ class TestQuantumEnvironmentClass(unittest.TestCase):
         self.assertEqual(self.env.qm.get_ball(0), ball0)
         self.assertEqual(self.env.qm.get_ball(16), ball2)
 
+    def test_telequbit_using_actionnum(self):
+        pass
+
     def test_action_decode(self):
         self.env.environment_reset()
         for num in range(1+self.env.num_entanglement_links):
@@ -162,9 +158,10 @@ class TestQuantumEnvironmentClass(unittest.TestCase):
         while len(random_values) != 1:
             random_values = list(range(self.env.action_size))
             for i, value in enumerate(self.env.state):
-                if value == float('inf'):
+                if value == -1:
                     random_values.remove(i+1)
             
+            print(random_values)
             action = random.choice(random_values)
             if action != 0:
                 self.env.RL_step(action)

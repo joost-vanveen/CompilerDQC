@@ -36,21 +36,17 @@ class Epsilon_Greedy_Exploration(Base_Exploration_Strategy):
         epsilon = self.get_updated_epsilon_exploration(action_info)
         #epsilon = self.get_updated_epsilon_exploration_dynamic(action_info)
         #print(epsilon)
+        random_values = list(range(action_values.shape[1]))
+        for i, value in enumerate(current_state):
+            if value == -2 and i+1 in random_values:
+                random_values.remove(i+1)
         
         if (random.random() > epsilon or turn_off_exploration) and (episode_number >= self.random_episodes_to_run):
             #print('argmax employed')
-            return torch.argmax(action_values).item()
+            valid_action_values = action_values[0, torch.tensor(random_values)] 
+            best_action_idx = torch.argmax(valid_action_values).item()  # Get index in valid_action_values
+            return random_values[best_action_idx]
         #print('random section') 
-        
-        if (random.random() > epsilon or turn_off_exploration) and (episode_number >= self.random_episodes_to_run):
-            return torch.argmax(action_values).item()
-
-        # Pick a completely random action
-        # TODO: change this such that it picks a valid action and not a completly random one
-        random_values = list(range(action_values.shape[1]))
-        for i, value in enumerate(current_state):
-            if value == float('inf'):
-                random_values.remove(i+1)
         
         return random.choice(random_values)
     

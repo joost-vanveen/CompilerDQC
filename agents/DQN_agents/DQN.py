@@ -37,6 +37,10 @@ class DQN(Base_Agent):
             self.save_experience()
             self.state = self.next_state #this is to set the state for the next iteration
             self.global_step_number += 1
+        print("This many gates left in the DAG: ", self.environment.DAG_left)
+        print("Agent performed this many swaps: ", self.environment.swap_amount)
+        print("Agent generated this many EPR pairs: ", self.environment.EPR_amount)
+        print("Agent performed this many telequbits: ", self.environment.telequbit_amount)
         self.episode_number += 1
 
     def pick_action(self, state=None):

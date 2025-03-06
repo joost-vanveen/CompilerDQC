@@ -89,7 +89,7 @@ class EnvUpdater(gym.Env):      #gym is an opanAI's environment generator tools.
             
         if done and not successfulDone:
             # print("Dummy Step Count: ", steptemp_dummy)
-            reward += Constants.REWARD_DEADLINE
+            reward += Constants.REWARD_DEADLINE - len(self.quantumEnv.my_DAG.DAG.nodes) * 500
             
         self.epiTotalREward += reward
         if successfulDone:
@@ -105,6 +105,10 @@ class EnvUpdater(gym.Env):      #gym is an opanAI's environment generator tools.
             append_list_as_row(self.reward_filename, row)
             append_list_as_row(self.done_filename, row2)
             self.epiTotalREward = 0
+            self.DAG_left = self.quantumEnv.DAG_left
+            self.swap_amount = self.quantumEnv.swap_amount
+            self.EPR_amount = self.quantumEnv.EPR_amount
+            self.telequbit_amount = self.quantumEnv.telequbit_amount
         
         self.dummy_stepCount += 1
         if action == 0: ### action=0 is always a stop, and that is the only increase in step

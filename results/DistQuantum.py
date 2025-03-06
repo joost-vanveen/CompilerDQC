@@ -24,7 +24,7 @@ import torch
 config = Config()
 
 config.seed = 123453
-config.num_episodes_to_run = 250   # control number of episodes was 60
+config.num_episodes_to_run = 100   # control number of episodes was 60
 config.file_to_save_data_results = "results/data_and_graphs/dist_quantum_Results_Data.pkl"   #save results 
 config.file_to_save_results_graph = "results/data_and_graphs/dist_quantum__Results_Graph.png"   #save graph
 config.show_solution_score = False
@@ -41,20 +41,20 @@ config.save_model = True
 # line below, 
 # state_size is number of physcial qubit locations in processors (directload TBD), 
 # completion_deadline is time by which DAG must be completed
-config.environment = EnvUpdater(completion_deadline = 1500 - 1)  #1500  # how many steps we allow for the DAG to be executed
+config.environment = EnvUpdater(completion_deadline = 500 - 1)  #1500  # how many steps we allow for the DAG to be executed
 
 
 config.hyperparameters = {
     "DQN_Agents": {
         "learning_rate": 0.00001,  #working was 0.00001          #was 0.001 have tried 0.0001
-        "batch_size": 256*10, #256*10,
-        "buffer_size": 100000, #was 80000
+        "batch_size": 2560, #256*10,
+        "buffer_size": 80000, #was 80000
         "epsilon": 1.0,
         "epsilon_decay_rate_denominator": 80, #was 50 
         "discount_rate": 0.99,  #0.99,
         "tau": 0.001,
-        "update_every_n_steps": 5,
-        "linear_hidden_units": [140,150],     #working was [90,80] and before that [70, 80] did not work [250,150]
+        "update_every_n_steps": 20,
+        "linear_hidden_units": [512,256],     #working was [90,80] and before that [70, 80] did not work [250,150]
         "final_layer_activation": "None",
         "batch_norm": False,
         "gradient_clipping_norm": 0.7,
