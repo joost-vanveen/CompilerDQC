@@ -15,8 +15,9 @@ class DAGClass():
     
     def __init__(self):
         # Create a Directed Graph
-        self.DAG = self.create_random_DAG(Constants.NUMQ, Constants.NUMG)
-        #self.DAG = self.create_DAG()
+        #self.DAG = self.create_random_DAG(Constants.NUMQ, Constants.NUMG)
+        self.DAG = self.create_DAG()
+        print(self.DAG)
         self.topo_order = self.compute_topo_order()
         self.numGates = len(self.topo_order)  #initial number of gates
         self.layers = self.compute_node_layers()
@@ -61,9 +62,33 @@ class DAGClass():
 
     def create_DAG(self):
         DAG = nx.DiGraph()
-        DAG.add_edges_from([
-            ((0,3,0), (4,7,0)), ((1,5,1), (1,6,2)), ((2,3,2), (5,0,3)),  
-        ])
+        dag_list = [(3, 8, 0), (6, 5, 0), (0, 7, 0),
+                            (1, 6, 1), (6, 0, 2), (2, 0, 3), 
+                            (8, 2, 4), (1, 0, 4), (4, 0, 5), 
+                            (9, 2, 5), (1, 3, 5), (8, 2, 6), 
+                            (4, 2, 7), (8, 6, 7), (2, 0, 8), 
+                            (6, 1, 8), (4, 5, 8), (8, 2, 9), 
+                            (1, 3, 9), (9, 2, 10), (6, 1, 10), 
+                            (3, 9, 11), (0, 1, 11), (0, 2, 12), 
+                            (9, 5, 12), (0, 5, 13), (4, 9, 13), 
+                            (5, 6, 14), (7, 4, 14), (6, 3, 15)]
+        # Keeps track of the most recent node for each qubit
+        qubit_most_recent_node = {}
+        
+        for x, y, l in dag_list:  # remember it is sorted
+            current_node = (x, y, l)
+            DAG.add_node(current_node)
+            
+            # Connect to the most recent node for each qubit, if it exists
+            for qubit in [x, y]:
+                if qubit in qubit_most_recent_node:
+                    prev_node = qubit_most_recent_node[qubit]
+                    DAG.add_edge(prev_node, current_node)
+            
+            # Update the most recent node for the involved qubits
+            qubit_most_recent_node[x] = current_node
+            qubit_most_recent_node[y] = current_node
+
         # DAG.add_edges_from([
         #     ((0,1,0), (0,2,1))
         # ])

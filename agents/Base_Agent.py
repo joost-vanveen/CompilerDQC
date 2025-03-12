@@ -88,7 +88,7 @@ class Base_Agent(object):
 
     def get_state_size(self):
         """Gets the state_size for the gym env into the correct shape for a neural network"""
-        random_state = self.environment.reset()
+        random_state, _ = self.environment.reset()
         if isinstance(random_state, dict):
             state_size = random_state["observation"].shape[0] + random_state["desired_goal"].shape[0]
             return state_size
@@ -161,8 +161,9 @@ class Base_Agent(object):
     def reset_game(self):
         """Resets the game information so we are ready to play a new episode"""
         self.environment.seed(self.config.seed)
-        self.state = self.environment.reset()
+        self.state, self.mask = self.environment.reset()
         self.next_state = None
+        self.next_mask = None
         self.action = None
         self.reward = None
         self.done = False
@@ -214,7 +215,7 @@ class Base_Agent(object):
 
     def conduct_action(self, action):
         """Conducts an action in the environment"""
-        self.next_state, self.reward, self.done, _ = self.environment.step(action)
+        self.next_state, self.next_mask, self.reward, self.done, _ = self.environment.step(action)
         self.total_episode_score_so_far += self.reward
         if self.hyperparameters["clip_rewards"]: self.reward =  max(min(self.reward, 1.0), -1.0)
 
@@ -291,7 +292,7 @@ class Base_Agent(object):
     def save_experience(self, memory=None, experience=None):
         """Saves the recent experience to the memory buffer"""
         if memory is None: memory = self.memory
-        if experience is None: experience = self.state, self.action, self.reward, self.next_state, self.done
+        if experience is None: experience = self.state, self.mask, self.action, self.reward, self.next_state, self.next_mask, self.done
         memory.add_experience(*experience)
 
     def take_optimisation_step(self, optimizer, network, loss, clipping_norm=None, retain_graph=False):

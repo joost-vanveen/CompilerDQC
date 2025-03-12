@@ -85,7 +85,7 @@ class QubitMappingClass():
     
     def ball_in_epr_pairs(self, ball):
         for epr_id in self.EPR_pairs:
-            (ball1, ball2)  = self.EPR_pairs[epr_id]
+            (ball1, ball2) = self.EPR_pairs[epr_id]
             if ball == ball1 or ball == ball2:
                 return True, epr_id  # Ball is part of an EPR pair
         return False, None  # Ball is not part of any EPR pair

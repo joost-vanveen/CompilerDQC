@@ -17,7 +17,7 @@ class DQN_With_Fixed_Q_Targets(DQN):
         self.soft_update_of_target_network(self.q_network_local, self.q_network_target,
                                            self.hyperparameters["tau"])  # Update the target network
 
-    def compute_q_values_for_next_states(self, next_states):
+    def compute_q_values_for_next_states(self, next_states, next_mask):
         """Computes the q_values for next state we will use to create the loss to train the Q network"""
-        Q_targets_next = self.q_network_target(next_states).detach().max(1)[0].unsqueeze(1)
+        Q_targets_next = self.q_network_target(next_states, next_mask).detach().max(1)[0].unsqueeze(1)
         return Q_targets_next

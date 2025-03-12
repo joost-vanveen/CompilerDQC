@@ -37,7 +37,8 @@ class EnvUpdater(gym.Env):      #gym is an opanAI's environment generator tools.
     def __init__(self, completion_deadline): 
 
         self.quantumEnv = QuantumEnvironmentClass()
-        self.state = self.quantumEnv.state   #state at the beginning decided on by the processor and DAG configurations
+        self.state = np.array(self.quantumEnv.state)   #state at the beginning decided on by the processor and DAG configurations
+        self.mask = np.array(self.quantumEnv.mask)
         
         self.action_dim = self.quantumEnv.action_size  #environment provides action space size
         self.action_list = spaces.Discrete(self.action_dim)   #discrete action space
@@ -60,9 +61,13 @@ class EnvUpdater(gym.Env):      #gym is an opanAI's environment generator tools.
             #writer.writerow(["Episode","Total"])
         
         self.done_filename = 'doneTime.csv'    
-        with open(self.reward_filename, 'a', newline="") as file2:
+        with open(self.done_filename, 'a', newline="") as file2:
             writer2 = csv.writer(file2)
             #writer.writerow(["Episode","Total"])
+
+        self.action_stats = 'actionStats.csv'    
+        with open(self.action_stats, 'a', newline="") as file3:
+            writer3 = csv.writer(file3)
         
     
     def seed(self, seed=None):
@@ -74,8 +79,9 @@ class EnvUpdater(gym.Env):      #gym is an opanAI's environment generator tools.
         
         
     
-        reward, new_state, successfulDone = self.quantumEnv.RL_step(action)
+        reward, new_state, new_mask, successfulDone = self.quantumEnv.RL_step(action)
         self.state = new_state 
+        self.mask = new_mask
         steptemp = copy.deepcopy(self.stepCount)
         steptemp_dummy = copy.deepcopy(self.dummy_stepCount)
         
@@ -89,7 +95,7 @@ class EnvUpdater(gym.Env):      #gym is an opanAI's environment generator tools.
             
         if done and not successfulDone:
             # print("Dummy Step Count: ", steptemp_dummy)
-            reward += Constants.REWARD_DEADLINE - len(self.quantumEnv.my_DAG.DAG.nodes) * 500
+            reward += Constants.REWARD_DEADLINE
             
         self.epiTotalREward += reward
         if successfulDone:
@@ -101,14 +107,14 @@ class EnvUpdater(gym.Env):      #gym is an opanAI's environment generator tools.
             self.EpiCount += 1
             #print("solved/done after step number: ", steptemp)
             row = [self.EpiCount, self.epiTotalREward]
-            row2 = [self.EpiCount, steptemp]
+            row2 = [self.EpiCount, steptemp, self.quantumEnv.DAG_left]
+            row3 = [self.quantumEnv.swap_amount, self.quantumEnv.telequbit_amount, self.quantumEnv.EPR_amount]
             append_list_as_row(self.reward_filename, row)
             append_list_as_row(self.done_filename, row2)
+            append_list_as_row(self.action_stats, row3)
             self.epiTotalREward = 0
-            self.DAG_left = self.quantumEnv.DAG_left
-            self.swap_amount = self.quantumEnv.swap_amount
-            self.EPR_amount = self.quantumEnv.EPR_amount
-            self.telequbit_amount = self.quantumEnv.telequbit_amount
+            print(self.quantumEnv.DAG_left)
+            print(row3)
         
         self.dummy_stepCount += 1
         if action == 0: ### action=0 is always a stop, and that is the only increase in step
@@ -119,14 +125,15 @@ class EnvUpdater(gym.Env):      #gym is an opanAI's environment generator tools.
         # print("new_mask: ", new_mask)
         # print("reward: ", reward)
  
-        return new_state, reward, done, {}       #supposed to return new state, reward and done to the learning agent
+        return new_state, new_mask, reward, done, {}       #supposed to return new state, reward and done to the learning agent
 
 
     def reset(self):
         self.quantumEnv.environment_reset()  
         self.state = self.quantumEnv.state
+        self.mask = self.quantumEnv.mask
         #print("reset_was_called")
-        return np.array(self.state)
+        return np.array(self.state), np.array(self.mask)
 
 
     def deadline_monitor(self, successfulDone):

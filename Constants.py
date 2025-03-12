@@ -14,10 +14,10 @@ class Constants:
     REWARD_INVALID_ACTION = -100
 
     NUMQ = 10  # number of qubits for the random dag/circuit
-    NUMG = 12  # number of gates for the random dag/circuit
+    NUMG = 30  # number of gates for the random dag/circuit
 
     REWARD_EMPTY_DAG = 3000 
-    REWARD_DEADLINE = -1000
+    REWARD_DEADLINE = -3000
 
 
     DISTANCE_MULT = 18  # the multiplier for the difference of total distances metric
@@ -28,14 +28,18 @@ class Constants:
                        1: 2,
                        2: 3,
                        3: 4,
-                       4: 10,
-                       5: 11,
-                       6: 12,
-                       7: 13,
-                       8: 0,
-                       9: 9,
-                       10: 5,
+                       4: 5,
+                       5: 10,
+                       6: 11,
+                       7: 12,
+                       8: 13,
+                       9: 14,
+                       10: 0,
                        11: 6,
-                       12: 14,
-                       13: 15,
+                       12: 7,
+                       13: 8,
+                       14: 9,
+                       15: 15,
+                       16: 16,
+                       17: 17,
                        }
