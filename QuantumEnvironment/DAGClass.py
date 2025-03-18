@@ -15,8 +15,8 @@ class DAGClass():
     
     def __init__(self):
         # Create a Directed Graph
-        #self.DAG = self.create_random_DAG(Constants.NUMQ, Constants.NUMG)
-        self.DAG = self.create_DAG()
+        self.DAG = self.create_random_DAG(Constants.NUMQ, Constants.NUMG)
+        #self.DAG = self.create_DAG()
         print(self.DAG)
         self.topo_order = self.compute_topo_order()
         self.numGates = len(self.topo_order)  #initial number of gates

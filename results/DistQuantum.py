@@ -19,17 +19,20 @@ from agents.DQN_agents.DDQN_With_Prioritised_Experience_Replay import DDQN_With_
 from agents.DQN_agents.DQN import DQN
 from agents.DQN_agents.DQN_With_Fixed_Q_Targets import DQN_With_Fixed_Q_Targets
 import torch
+import torch.profiler
+import cProfile
+import pstats
 
 
 config = Config()
 
 config.seed = 123453
-config.num_episodes_to_run = 250   # control number of episodes was 60
+config.num_episodes_to_run = 150   # control number of episodes was 60
 config.file_to_save_data_results = "results/data_and_graphs/dist_quantum_Results_Data.pkl"   #save results 
 config.file_to_save_results_graph = "results/data_and_graphs/dist_quantum__Results_Graph.png"   #save graph
 config.show_solution_score = False
 config.visualise_individual_results = False
-config.visualise_overall_agent_results = True
+config.visualise_overall_agent_results = False
 config.baselines = True
 config.standard_deviation_results = 1.0
 config.runs_per_agent = 1
@@ -41,24 +44,24 @@ config.save_model = True
 # line below, 
 # state_size is number of physcial qubit locations in processors (directload TBD), 
 # completion_deadline is time by which DAG must be completed
-config.environment = EnvUpdater(completion_deadline = 1500 - 1)  #1500  # how many steps we allow for the DAG to be executed
+config.environment = EnvUpdater(completion_deadline = 500 - 1)  #1500  # how many steps we allow for the DAG to be executed
 
 
 config.hyperparameters = {
     "DQN_Agents": {
         "learning_rate": 0.00001,  #working was 0.00001          #was 0.001 have tried 0.0001
-        "batch_size": 2560, #256*10,
-        "buffer_size": 80000, #was 80000
+        "batch_size": 256*10, #256*10,
+        "buffer_size": 100000, #was 80000
         "epsilon": 1.0,
         "epsilon_decay_rate_denominator": 80, #was 50 
         "discount_rate": 0.99,  #0.99,
         "tau": 0.001,
-        "update_every_n_steps": 25,
-        "linear_hidden_units": [300,300],     #working was [90,80] and before that [70, 80] did not work [250,150]
+        "update_every_n_steps": 5,
+        "linear_hidden_units": [140,150],     #working was [90,80] and before that [70, 80] did not work [250,150]
         "final_layer_activation": "None",
         "batch_norm": False,
         "gradient_clipping_norm": 0.7,
-        "learning_iterations": 15,
+        "learning_iterations": 10,
         "clip_rewards": False
     },
     "Stochastic_Policy_Search_Agents": {
@@ -148,9 +151,13 @@ if __name__ == "__main__":
     #[DQN]  #[DDQN]  #[SAC_Discrete, DDQN, Dueling_DDQN, DQN, DQN_With_Fixed_Q_Targets,SNN_HRL, SAC, DDPG, 
               #DDQN_With_exPrioritised_Experience_Replay, A2C, PPO, A3C ]
     trainer = Trainer(config, AGENTS)
-    trainer.run_games_for_agents()
+    with cProfile.Profile() as pr:
+        trainer.run_games_for_agents()
 
-
+    
+    # Print top 10 time-consuming functions
+    stats = pstats.Stats(pr)
+    stats.strip_dirs().sort_stats("cumulative").print_stats(25)
 
 
 

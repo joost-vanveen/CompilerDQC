@@ -25,7 +25,7 @@ class QuantumEnvironmentClass():
         self.my_DAG = DAGClass()
 
         self.num_entanglement_links = self.my_arch.numEdgesQuantum
-        self.max_epr_pairs = 4
+        self.max_epr_pairs = 3
         self.qubit_amount = self.my_DAG.numQubits + 2*self.max_epr_pairs
 
         self.DAG_left = self.my_DAG.numGates
@@ -50,7 +50,7 @@ class QuantumEnvironmentClass():
         # TODO:
         # make it so we can generate either random mapping or set based on config
         # test this
-         self.qm = QubitMappingClass(self.my_arch.numNodes, self.my_DAG.numQubits, self.max_epr_pairs, self.G, initial_mapping=Constants.INITIAL_MAPPING)
+         self.qm = QubitMappingClass(self.my_arch.numNodes, self.my_DAG.numQubits, self.max_epr_pairs, self.G, initial_mapping=None)
          self.update_frontier()
          self.distance_metric = self.calculate_distance_metric()
          self.distance_metric_prev = self.distance_metric

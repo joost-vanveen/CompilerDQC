@@ -13,7 +13,7 @@ class Constants:
     REWARD_SCORE = 500  
     REWARD_INVALID_ACTION = -100
 
-    NUMQ = 10  # number of qubits for the random dag/circuit
+    NUMQ = 4  # number of qubits for the random dag/circuit
     NUMG = 30  # number of gates for the random dag/circuit
 
     REWARD_EMPTY_DAG = 3000 
@@ -29,17 +29,10 @@ class Constants:
                        2: 3,
                        3: 4,
                        4: 5,
-                       5: 10,
-                       6: 11,
-                       7: 12,
-                       8: 13,
-                       9: 14,
-                       10: 0,
-                       11: 6,
-                       12: 7,
-                       13: 8,
-                       14: 9,
-                       15: 15,
-                       16: 16,
-                       17: 17,
+                       5: 6,
+                       6: 7,
+                       7: 9,
+                       8: 10,
+                       9: 11,
+                       10: 12,
                        }
