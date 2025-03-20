@@ -58,6 +58,7 @@ class QuantumEnvironmentClass():
     
     #!this function generates the action space size based on possible actions that could be taken
     def generate_action_and_state_size(self):
+        # prev action size was 1 + quantum edges + qubit edges = 32
         #action_size = 1 + (self.qubit_amount * (self.qubit_amount - 1)) - (self.max_epr_pairs*2 * (self.max_epr_pairs*2 - 1)) + self.num_entanglement_links
         action_size = 1 + (self.qubit_amount * (self.qubit_amount - 1)) + self.num_entanglement_links #1 for cool off, then amount of qubit pairs plus amount of quantum links
         state_size = self.my_arch.numNodes + (3*self.my_DAG.numGates) # amount of qubits pairs plus the size of the DAG

@@ -38,7 +38,8 @@ class QPUClass():
         #     (6, 7), (0, 1), (8, 9), (12, 15)
         # ]
         edges = [
-            (1, 2), (2, 3), (3, 4), (4, 1),
+            (1, 2), (2, 3), (3, 4), (4, 5),
+            (5, 6), (6, 7), (7, 8), (8, 1),
             # Corners
             (0, 1)
         ]
@@ -61,8 +62,8 @@ class QPUClass():
             G.nodes[node]['weight'] = 0  # Set your initial weight value in the nodes! (cooldown)
 
         # Add edge between node 0 of both graphs (In the union graph, node 0 of second graph is 16)
-        G.add_edge(0, 5, weight=0, label="quantum", tele_qubit=False)
-        G.edges[(0,5)]['mask_generate'] = True
+        G.add_edge(0, 9, weight=0, label="quantum", tele_qubit=False)
+        G.edges[(0,9)]['mask_generate'] = True
         numNodes = len(G.nodes)
         numEdges = len(G.edges)
 
