@@ -108,7 +108,7 @@ class EnvUpdater(gym.Env):      #gym is an opanAI's environment generator tools.
             #print("solved/done after step number: ", steptemp)
             row = [self.EpiCount, self.epiTotalREward]
             row2 = [self.EpiCount, steptemp, self.quantumEnv.DAG_left]
-            row3 = [self.quantumEnv.swap_amount, self.quantumEnv.telequbit_amount, self.quantumEnv.EPR_amount]
+            row3 = [self.quantumEnv.action_amount, self.quantumEnv.swap_amount, self.quantumEnv.telequbit_amount, self.quantumEnv.EPR_amount]
             append_list_as_row(self.reward_filename, row)
             append_list_as_row(self.done_filename, row2)
             append_list_as_row(self.action_stats, row3)

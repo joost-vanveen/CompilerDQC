@@ -102,8 +102,8 @@ class QubitMappingClass():
 
         # Assign fixed mappings
         initial_mapping[self.numQubits] = 0
-        initial_mapping[self.numQubits + 1] = 9
-        used_physical.update({0, 9})
+        initial_mapping[self.numQubits + 1] = 7
+        used_physical.update({0, 7})
 
         remaining_logical = [i for i in range(self.numQubits+2*self.numEPR_threshold) if i not in initial_mapping]
         physical_qubits = list(range(self.numNodes))

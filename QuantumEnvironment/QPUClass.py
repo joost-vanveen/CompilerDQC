@@ -26,7 +26,7 @@ class QPUClass():
     def create_graph(self):
         G = nx.Graph()
         # Add nodes
-        nodes = [i for i in range(5)]  # We have 16 nodes
+        nodes = [i for i in range(7)]  # We have 16 nodes
         G.add_nodes_from(nodes)
         
         # Add edges 
@@ -39,7 +39,7 @@ class QPUClass():
         # ]
         edges = [
             (1, 2), (2, 3), (3, 4), (4, 5),
-            (5, 6), (6, 7), (7, 8), (8, 1),
+            (5, 6), (6, 1),
             # Corners
             (0, 1)
         ]
@@ -62,8 +62,8 @@ class QPUClass():
             G.nodes[node]['weight'] = 0  # Set your initial weight value in the nodes! (cooldown)
 
         # Add edge between node 0 of both graphs (In the union graph, node 0 of second graph is 16)
-        G.add_edge(0, 9, weight=0, label="quantum", tele_qubit=False)
-        G.edges[(0,9)]['mask_generate'] = True
+        G.add_edge(0, 7, weight=0, label="quantum", tele_qubit=False)
+        G.edges[(0,7)]['mask_generate'] = True
         numNodes = len(G.nodes)
         numEdges = len(G.edges)
 

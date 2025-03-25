@@ -29,6 +29,7 @@ class QuantumEnvironmentClass():
         self.qubit_amount = self.my_DAG.numQubits + 2*self.max_epr_pairs
 
         self.DAG_left = self.my_DAG.numGates
+        self.action_amount = 0
         self.swap_amount = 0
         self.EPR_amount = 0
         self.telequbit_amount = 0
@@ -611,6 +612,7 @@ class QuantumEnvironmentClass():
         reward = 0
         
         reward, successfulDone = self.step_given_action(action_num)
+        self.action_amount += 1
         self.state, self.mask = self.update_state_vector()
         new_state, new_mask = np.array(self.state), np.array(self.mask)
         
