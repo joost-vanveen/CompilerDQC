@@ -87,6 +87,7 @@ class QuantumEnvironmentClass():
         #Initialize the DAG - quantum circuit
         self.my_DAG = DAGClass()      ##HERE WE WILL CHANGE THE DAG IN EVERY TIME SLOT BUT FOR NOW WE FIX A SINGLE ONE - NOTE THAT THE STATE SPACE WILL CHANGE WITH NONE AT THE END BUT WE WILL HAVE A FIXED MAX GATE NUMBER
         self.DAG_left = self.my_DAG.numGates
+        self.action_amount = 0
         self.swap_amount = 0
         self.EPR_amount = 0
         self.telequbit_amount = 0
