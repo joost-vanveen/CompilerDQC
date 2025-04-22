@@ -1,5 +1,6 @@
 from collections import namedtuple, deque
 import random
+import time
 import torch
 import numpy as np
 
@@ -40,15 +41,28 @@ class Replay_Buffer(object):
             
     def separate_out_data_types(self, experiences):
         """Puts the sampled experience into the correct format for a PyTorch neural network"""
-        states = torch.from_numpy(np.vstack([e.state for e in experiences if e is not None])).float().to(self.device)
-        masks = torch.from_numpy(np.vstack([e.mask for e in experiences if e is not None])).float().to(self.device)
-        actions = torch.from_numpy(np.vstack([e.action for e in experiences if e is not None])).float().to(self.device)
-        rewards = torch.from_numpy(np.vstack([e.reward for e in experiences if e is not None])).float().to(self.device)
-        next_states = torch.from_numpy(np.vstack([e.next_state for e in experiences if e is not None])).float().to(self.device)
-        next_masks = torch.from_numpy(np.vstack([e.next_mask for e in experiences if e is not None])).float().to(self.device)
-        dones = torch.from_numpy(np.vstack([int(e.done) for e in experiences if e is not None])).float().to(self.device)
-        
+
+        # Filter out None only once
+        valid_experiences = [e for e in experiences if e is not None]
+
+        # Pre-allocate and extract components in a single loop
+        states, masks, actions, rewards, next_states, next_masks, dones = zip(*[
+            (e.state, e.mask, e.action, e.reward, e.next_state, e.next_mask, int(e.done))
+            for e in valid_experiences
+        ])
+
+        # Convert all at once
+        device = self.device
+        states = torch.from_numpy(np.vstack(states)).float().to(device)
+        masks = torch.from_numpy(np.vstack(masks)).bool().to(device)
+        actions = torch.from_numpy(np.vstack(actions)).float().to(device)
+        rewards = torch.from_numpy(np.vstack(rewards)).float().to(device)
+        next_states = torch.from_numpy(np.vstack(next_states)).float().to(device)
+        next_masks = torch.from_numpy(np.vstack(next_masks)).bool().to(device)
+        dones = torch.from_numpy(np.vstack(dones)).float().to(device)
+
         return states, masks, actions, rewards, next_states, next_masks, dones
+
     
     def pick_experiences(self, num_experiences=None):
         if num_experiences is not None: batch_size = num_experiences

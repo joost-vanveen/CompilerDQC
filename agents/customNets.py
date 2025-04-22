@@ -5,6 +5,40 @@ import math
 
 #learning agent NNs used by the simulator for distributed quantum computer simulator defined here
 
+class ComboLayer(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x):
+        batch_size, input_dim = x.size()
+        assert input_dim >= 3, "Input must have at least 3 dimensions"
+
+        # Step 1: Pass through first 2 values
+        first_two = x[:, :2]  # shape [batch_size, 2]
+
+        # Step 2: Remaining values
+        rest = x[:, 2:]  # shape [batch_size, rest_dim]
+        rest_dim = rest.size(1)
+
+        # Create all (i, j) index pairs where i != j
+        idx = torch.arange(rest_dim)
+        i_idx, j_idx = torch.meshgrid(idx, idx, indexing="ij")
+        mask = i_idx != j_idx
+        i_idx = i_idx[mask].flatten()
+        j_idx = j_idx[mask].flatten()
+
+        # Gather xi and xj
+        xi = rest[:, i_idx]  # shape [batch_size, num_combos]
+        xj = rest[:, j_idx]  # shape [batch_size, num_combos]
+
+        # Combine with weights
+        combined = 0.75 * xi + 0.25 * xj  # shape [batch_size, num_combos]
+
+        # Final output
+        output = torch.cat([first_two, combined], dim=1)  # shape [batch_size, 2 + num_combos]
+        return output
+
+
 class customizedNN(nn.Module):  
     
     def __init__(self, input_dim, output_dim, hidden_layers, device):
@@ -33,6 +67,8 @@ class customizedNN(nn.Module):
             else:
                 self.layers.append(nn.Linear(self.hidden_dims[layer-1], self.hidden_dims[layer]))
                 self.layers.append(nn.ReLU())
+
+        self.combo_layer = ComboLayer()
         
         #self.relu = nn.ReLU()
         #self.dropout = nn.Dropout(0.1)
@@ -42,7 +78,8 @@ class customizedNN(nn.Module):
         for layer in self.layers:
             x = layer(x)
             
-        x = x * mask          
+        x = x = self.combo_layer(x)  # Apply custom logic
+        x = x * mask.float()              # Apply mask         
         return x
     
 

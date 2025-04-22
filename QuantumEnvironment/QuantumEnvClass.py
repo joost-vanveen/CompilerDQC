@@ -25,7 +25,7 @@ class QuantumEnvironmentClass():
         self.my_DAG = DAGClass()
 
         self.num_entanglement_links = self.my_arch.numEdgesQuantum
-        self.max_epr_pairs = 3
+        self.max_epr_pairs = 5
         self.qubit_amount = self.my_DAG.numQubits + 2*self.max_epr_pairs
 
         self.DAG_left = self.my_DAG.numGates
@@ -61,7 +61,7 @@ class QuantumEnvironmentClass():
     def generate_action_and_state_size(self):
         # prev action size was 1 + quantum edges + qubit edges = 32
         #action_size = 1 + (self.qubit_amount * (self.qubit_amount - 1)) - (self.max_epr_pairs*2 * (self.max_epr_pairs*2 - 1)) + self.num_entanglement_links
-        action_size = 1 + (self.qubit_amount * (self.qubit_amount - 1)) + self.num_entanglement_links #1 for cool off, then amount of qubit pairs plus amount of quantum links
+        action_size = 1 + self.qubit_amount + self.num_entanglement_links #1 for cool off, then amount of qubit pairs plus amount of quantum links
         state_size = self.my_arch.numNodes + (3*self.my_DAG.numGates) # amount of qubits pairs plus the size of the DAG
         return action_size, state_size
     

@@ -2,6 +2,7 @@ from collections import Counter
 
 import torch
 import random
+import time
 import torch.optim as optim
 import torch.nn.functional as F
 import numpy as np
@@ -26,18 +27,34 @@ class DQN(Base_Agent):
         super(DQN, self).reset_game()
         self.update_learning_rate(self.hyperparameters["learning_rate"], self.q_network_optimizer)
 
-    def step(self):
+    def step(self, prof=None):
         """Runs a step within a game including a learning step if required"""
+        self.total_time_sample_experience = 0
+        self.total_time_loss_compute = 0
+        self.total_time_action_list = 0
+        self.total_time_optimisation = 0
+
         while not self.done:
             self.action = self.pick_action()
             self.conduct_action(self.action)           
             if self.time_for_q_network_to_learn():
+                #experiences = self.sample_experiences()
                 for _ in range(self.hyperparameters["learning_iterations"]):
                     self.learn()
+                    if prof:
+                        prof.step()
             self.save_experience()
             self.state = self.next_state #this is to set the state for the next iteration
             self.mask = self.next_mask
             self.global_step_number += 1
+
+        # print(f"\n--- Episode {self.episode_number} Timing Summary ---")
+        # print(f"Total time in sample experience      : {self.total_time_sample_experience:.6f} seconds")
+        # print(f"Total time in loss compute           : {self.total_time_loss_compute:.6f} seconds")
+        # print(f"Total time in action list            : {self.total_time_action_list:.6f} seconds")
+        # print(f"Total time in optimisation           : {self.total_time_optimisation:.6f} seconds")
+        # print(f"-----------------------------------------------------\n")
+
         self.episode_number += 1
 
     def pick_action(self, state=None):
@@ -45,19 +62,18 @@ class DQN(Base_Agent):
         # PyTorch only accepts mini-batches and not single observations so we have to use unsqueeze to add
         # a "fake" dimension to make it a mini-batch rather than a single observation
         if state is None: state = self.state
-        if isinstance(state, np.int64) or isinstance(state, int): state = np.array([state])
-        state = torch.from_numpy(state).float().unsqueeze(0).to(self.device)
+        state = torch.tensor(state, dtype=torch.float32, device=self.device).unsqueeze(0)
         mask = torch.from_numpy(self.mask).float().unsqueeze(0).to(self.device)
-        mask2 = torch.clone(mask)
+        #mask2 = torch.clone(mask)
         #mask = mask + 10000 * (mask - 1)
         if len(state.shape) < 2: state = state.unsqueeze(0)
         self.q_network_local.eval() #puts network in evaluation mode
-        with torch.no_grad():
+        with torch.inference_mode():
             action_values = self.q_network_local(state,mask)
         self.q_network_local.train() #puts network back in training mode
                        
         action = self.exploration_strategy.perturb_action_for_exploration_purposes({"action_values": action_values,
-                                                                                    "mask_vector" : mask2,   #mask added
+                                                                                    "mask_vector" : mask,   #mask added
                                                                                     "turn_off_exploration": self.turn_off_exploration,
                                                                                     "episode_number": self.episode_number})
         self.logger.info("Q values {} -- Action chosen {}".format(action_values, action))
@@ -67,17 +83,27 @@ class DQN(Base_Agent):
 
     def learn(self, experiences=None):
         """Runs a learning iteration for the Q network"""
+        #start = time.time()
         if experiences is None: states, masks, actions, rewards, next_states, next_masks, dones = self.sample_experiences() #Sample experiences
         else: states, masks, actions, rewards, next_states, next_masks, dones = experiences
+        #self.total_time_sample_experience += time.time() - start
+        
         # if max(rewards) > 100:
         #     print("max done: ", max(dones))
         #     print("max rewards: ", max(rewards))
+        start = time.time()
         loss = self.compute_loss(states, masks, next_states, next_masks, rewards, actions, dones)
+        self.total_time_loss_compute += time.time() - start
 
-        actions_list = [action_X.item() for action_X in actions ]
+        #start = time.time()
+        #actions_list = actions.view(-1).tolist()  # Fast, avoids looped .item()
+        #self.total_time_action_list += time.time() - start
 
-        self.logger.info("Action counts {}".format(Counter(actions_list)))
+        #self.logger.info("Action counts {}".format(Counter(actions_list)))
+        #start = time.time()
         self.take_optimisation_step(self.q_network_optimizer, self.q_network_local, loss, self.hyperparameters["gradient_clipping_norm"])
+        #self.total_time_optimisation += time.time() - start
+        
 
     def compute_loss(self, states, masks, next_states, next_masks, rewards, actions, dones):
         """Computes the loss required to train the Q network"""

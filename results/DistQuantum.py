@@ -19,7 +19,7 @@ from agents.DQN_agents.DDQN_With_Prioritised_Experience_Replay import DDQN_With_
 from agents.DQN_agents.DQN import DQN
 from agents.DQN_agents.DQN_With_Fixed_Q_Targets import DQN_With_Fixed_Q_Targets
 import torch
-import torch.profiler
+from torch.profiler import profile, ProfilerActivity, schedule, tensorboard_trace_handler
 import cProfile
 import pstats
 
@@ -38,13 +38,13 @@ config.standard_deviation_results = 1.0
 config.runs_per_agent = 1
 config.use_GPU = True
 config.overwrite_existing_results_file = False
-config.randomise_random_seed = True
+config.randomise_random_seed = False
 config.save_model = True
 
 # line below, 
 # state_size is number of physcial qubit locations in processors (directload TBD), 
 # completion_deadline is time by which DAG must be completed
-config.environment = EnvUpdater(completion_deadline = 800 - 1)  #1500  # how many steps we allow for the DAG to be executed
+config.environment = EnvUpdater(completion_deadline = 1500 - 1)  #1500  # how many steps we allow for the DAG to be executed
 
 
 config.hyperparameters = {
@@ -56,12 +56,12 @@ config.hyperparameters = {
         "epsilon_decay_rate_denominator": 80, #was 50 
         "discount_rate": 0.99,  #0.99,
         "tau": 0.001,
-        "update_every_n_steps": 40,
-        "linear_hidden_units": [150],     #working was [90,80] and before that [70, 80] did not work [250,150]
+        "update_every_n_steps": 20,
+        "linear_hidden_units": [90,80],     #working was [90,80] and before that [70, 80] did not work [250,150]
         "final_layer_activation": "None",
         "batch_norm": False,
         "gradient_clipping_norm": 0.7,
-        "learning_iterations": 15,
+        "learning_iterations": 10,
         "clip_rewards": False
     },
     "Stochastic_Policy_Search_Agents": {
@@ -146,21 +146,31 @@ config.hyperparameters = {
 
 if __name__ == "__main__":
     torch.multiprocessing.set_start_method('spawn')
-    AGENTS = [DDQN]  # the value for values, try [DQN] or [PPO] (I think [DDQN] it's fine) 
-    
-    #[DQN]  #[DDQN]  #[SAC_Discrete, DDQN, Dueling_DDQN, DQN, DQN_With_Fixed_Q_Targets,SNN_HRL, SAC, DDPG, 
-              #DDQN_With_exPrioritised_Experience_Replay, A2C, PPO, A3C ]
+    AGENTS = [DDQN]  # or [DQN], [PPO], etc.
+    print(torch.__version__)
     trainer = Trainer(config, AGENTS)
-    with cProfile.Profile() as pr:
-        trainer.run_games_for_agents()
 
     
-    # Print top 10 time-consuming functions
-    stats = pstats.Stats(pr)
-    stats.strip_dirs().sort_stats("cumulative").print_stats(25)
+    with torch.profiler.profile(
+        activities=[
+            torch.profiler.ProfilerActivity.CPU,
+            torch.profiler.ProfilerActivity.CUDA,
+        ],
+        schedule=torch.profiler.schedule(wait=1, warmup=1, active=2, repeat=1),
+        on_trace_ready=torch.profiler.tensorboard_trace_handler('./log'),
+        record_shapes=True,
+        with_stack=True
+    ) as prof:
+        # Run your training inside the profiling context
+        trainer.run_games_for_agents(prof=prof)
+        # If trainer.run_games_for_agents() has a loop, you can add `prof.step()` inside that loop
+        events = prof.key_averages()
+        print(f"Total events: {len(events)}")
+        print(events.table(sort_by="cuda_time_total", row_limit=100))
 
+    #trainer.run_games_for_agents(prof=None)
 
-
+    
     #     "DQN_Agents": {
     #     "learning_rate": 0.00001,  #working was 0.00001          #was 0.001 have tried 0.0001
     #     "batch_size": 256*10, #256*10,

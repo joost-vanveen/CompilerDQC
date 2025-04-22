@@ -71,12 +71,12 @@ class Trainer(object):
         }
         return agent_to_color_dictionary
 
-    def run_games_for_agents(self):
+    def run_games_for_agents(self, prof=None):
         """Run a set of games for each agent. Optionally visualising and/or saving the results"""
         self.results = self.create_object_to_store_results()
         for agent_number, agent_class in enumerate(self.agents):
             agent_name = agent_class.agent_name
-            self.run_games_for_agent(agent_number + 1, agent_class)
+            self.run_games_for_agent(agent_number + 1, agent_class, prof=prof)
             if self.config.visualise_overall_agent_results:
                 agent_rolling_score_results = [results[1] for results in  self.results[agent_name]]
                 self.visualise_overall_agent_results(agent_rolling_score_results, agent_name, show_mean_and_std_range=True)
@@ -92,7 +92,7 @@ class Trainer(object):
         else: results = self.load_obj(self.config.file_to_save_data_results)
         return results
 
-    def run_games_for_agent(self, agent_number, agent_class):
+    def run_games_for_agent(self, agent_number, agent_class, prof=None):
         """Runs a set of games for a given agent, saving the results in self.results"""
         agent_results = []
         agent_name = agent_class.agent_name
@@ -114,7 +114,7 @@ class Trainer(object):
             self.environment_name = agent.environment_title
             print(agent.hyperparameters)
             print("RANDOM SEED " , agent_config.seed)
-            game_scores, rolling_scores, time_taken = agent.run_n_episodes()
+            game_scores, rolling_scores, time_taken = agent.run_n_episodes(prof=prof)
             print("Time taken: {}".format(time_taken), flush=True)
             self.print_two_empty_lines()
             agent_results.append([game_scores, rolling_scores, len(rolling_scores), -1 * max(rolling_scores), time_taken])
