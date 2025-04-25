@@ -25,7 +25,7 @@ class QuantumEnvironmentClass():
         self.my_DAG = DAGClass()
 
         self.num_entanglement_links = self.my_arch.numEdgesQuantum
-        self.max_epr_pairs = 5
+        self.max_epr_pairs = 4
         self.qubit_amount = self.my_DAG.numQubits + 2*self.max_epr_pairs
 
         self.DAG_left = self.my_DAG.numGates

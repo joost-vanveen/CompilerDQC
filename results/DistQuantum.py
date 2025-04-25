@@ -56,7 +56,7 @@ config.hyperparameters = {
         "epsilon_decay_rate_denominator": 80, #was 50 
         "discount_rate": 0.99,  #0.99,
         "tau": 0.001,
-        "update_every_n_steps": 20,
+        "update_every_n_steps": 15,
         "linear_hidden_units": [90,80],     #working was [90,80] and before that [70, 80] did not work [250,150]
         "final_layer_activation": "None",
         "batch_norm": False,
