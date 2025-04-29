@@ -54,11 +54,11 @@ class Replay_Buffer(object):
         # Convert all at once
         device = self.device
         states = torch.from_numpy(np.vstack(states)).float().to(device)
-        masks = torch.from_numpy(np.vstack(masks)).bool().to(device)
+        masks = torch.from_numpy(np.vstack(masks)).float().to(device)
         actions = torch.from_numpy(np.vstack(actions)).float().to(device)
         rewards = torch.from_numpy(np.vstack(rewards)).float().to(device)
         next_states = torch.from_numpy(np.vstack(next_states)).float().to(device)
-        next_masks = torch.from_numpy(np.vstack(next_masks)).bool().to(device)
+        next_masks = torch.from_numpy(np.vstack(next_masks)).float().to(device)
         dones = torch.from_numpy(np.vstack(dones)).float().to(device)
 
         return states, masks, actions, rewards, next_states, next_masks, dones

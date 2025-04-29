@@ -178,13 +178,22 @@ class QuantumEnvironmentClass():
                 # In case there is no path between the two nodes
                 path_length = float('inf')
 
-            # if ((box1 < 9 and box2 > 8) or (box2 < 9 and box1 > 8)) and path_length != float('inf'):
-            #print("Path between node", box1, box2, "has weight of", path_length, "and its path is: ", shortest_path)
-
             if path_length == float('inf'):
                 path_length = 0
             else:
                 path_length = 1
+
+            # check if ball1 and ball2 or neighbors in the frontier
+            for (fball1, fball2, _) in self.frontier:
+                if ball1 == fball1 or ball1 == fball2:
+                    if ball2 == fball1 or ball1 == fball2:
+                        path_length *= 1.5
+                    else:
+                        for neighbor in self.G.neighbors(box2):
+                            neighbor_ball = self.qm.get_ball(neighbor)
+                            if neighbor_ball == fball1 or neighbor_ball == fball2:
+                                path_length *= 1.5
+
 
             #print("Derived from pair at index", self.pairs.index((ball1, ball2)), "and mask is set to", path_length)
             

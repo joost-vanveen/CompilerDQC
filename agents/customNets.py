@@ -79,7 +79,7 @@ class customizedNN(nn.Module):
             x = layer(x)
             
         x = x = self.combo_layer(x)  # Apply custom logic
-        x = x * mask.float()              # Apply mask         
+        x = x * mask                 # Apply mask         
         return x
     
 
