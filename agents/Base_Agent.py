@@ -161,7 +161,7 @@ class Base_Agent(object):
     def reset_game(self):
         """Resets the game information so we are ready to play a new episode"""
         self.environment.seed(self.config.seed)
-        self.state, self.mask = self.environment.reset()
+        self.state, self.mask = self.environment.reset(save_data=True)
         self.next_state = None
         self.next_mask = None
         self.action = None

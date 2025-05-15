@@ -22,7 +22,7 @@ class QuantumEnvironmentClass():
         self.my_arch = QPUClass()
         self.G = self.my_arch.G
         #Initialize the DAG - quantum circuit
-        self.my_DAG = DAGClass()
+        self.my_DAG = DAGClass(False)
 
         self.num_entanglement_links = self.my_arch.numEdgesQuantum
         self.max_epr_pairs = 4
@@ -40,21 +40,22 @@ class QuantumEnvironmentClass():
         
         self.action_size, self.state_size = self.generate_action_and_state_size()
 
-        self.generate_initial_state() 
+        self.generate_initial_state(save_mapping=False) 
         self.state, self.mask = self.update_state_vector()
         self.state, self.mask = np.array(self.state), np.array(self.mask)
         #print("At the beginning, state is: ", self.get_qubit_location_vector())
     
         
     #!this function generates inital state based on processor architecture and initial DAG conditions  (each_reset_start)  - note that it generates a state object from the class SystemStateClass 
-    def generate_initial_state(self):  
+    def generate_initial_state(self, save_mapping):  
         # TODO:
         # make it so we can generate either random mapping or set based on config
         # test this
-         self.qm = QubitMappingClass(self.my_arch.numNodes, self.my_DAG.numQubits, self.max_epr_pairs, self.G, initial_mapping=None)
-         self.update_frontier()
-         self.distance_metric = self.calculate_distance_metric()
-         self.distance_metric_prev = self.distance_metric
+        mapping = {10: 0, 11: 9, 8: 10, 12: 1, 13: 17, 16: 16, 1: 15, 15: 8, 17: 7, 14: 11, 6: 2, 5: 12, 0: 14, 3: 3, 9: 13, 2: 6, 7: 4, 4: 5}
+        self.qm = QubitMappingClass(self.my_arch.numNodes, self.my_DAG.numQubits, self.max_epr_pairs, self.G, initial_mapping=None, save_mapping=save_mapping)
+        self.update_frontier()
+        self.distance_metric = self.calculate_distance_metric()
+        self.distance_metric_prev = self.distance_metric
 
     
     #!this function generates the action space size based on possible actions that could be taken
@@ -82,10 +83,10 @@ class QuantumEnvironmentClass():
     
     #!after each completion (DAG completion or deadline failure), next game starts with environment/game reset (each_reset_start) 
     # TODO: Change such that only the inital mapping and all quantum env cooldowns etc are reset      
-    def environment_reset(self): #environment reset fn
+    def environment_reset(self, save_data=False): #environment reset fn
         
         #Initialize the DAG - quantum circuit
-        self.my_DAG = DAGClass()      ##HERE WE WILL CHANGE THE DAG IN EVERY TIME SLOT BUT FOR NOW WE FIX A SINGLE ONE - NOTE THAT THE STATE SPACE WILL CHANGE WITH NONE AT THE END BUT WE WILL HAVE A FIXED MAX GATE NUMBER
+        self.my_DAG = DAGClass(save_data)      ##HERE WE WILL CHANGE THE DAG IN EVERY TIME SLOT BUT FOR NOW WE FIX A SINGLE ONE - NOTE THAT THE STATE SPACE WILL CHANGE WITH NONE AT THE END BUT WE WILL HAVE A FIXED MAX GATE NUMBER
         self.DAG_left = self.my_DAG.numGates
         self.action_amount = 0
         self.swap_amount = 0
@@ -93,7 +94,7 @@ class QuantumEnvironmentClass():
         self.telequbit_amount = 0
         self.action_size, self.state_size = self.generate_action_and_state_size()
 
-        self.generate_initial_state() 
+        self.generate_initial_state(save_mapping=save_data) 
         self.state, self.mask = self.update_state_vector()
 
         #print("After Reset, state is: ", self.get_qubit_location_vector())
@@ -155,7 +156,9 @@ class QuantumEnvironmentClass():
 
         # Remove all node weights
         for node in self.pathfinding_G.nodes:
-            self.pathfinding_G.nodes[node]['weight'] = 0 
+            self.pathfinding_G.nodes[node]['weight'] = 0
+
+        reserved_qubits_per_qpu = self.qm.reserved_qubits_on_qpus(Constants.NUMQ, [9, 9])
 
         # Find all qubit pair distances
         for ball1, ball2 in self.pairs:
@@ -186,15 +189,41 @@ class QuantumEnvironmentClass():
             # check if ball1 and ball2 or neighbors in the frontier
             for (fball1, fball2, _) in self.frontier:
                 if ball1 == fball1 or ball1 == fball2:
-                    if ball2 == fball1 or ball1 == fball2:
+                    if ball2 == fball1 or ball2 == fball2:
                         path_length *= 1.5
+                        #print("Action ", ball1, ball2, "is allowed due to being in frontier gate")
                     else:
                         for neighbor in self.G.neighbors(box2):
                             neighbor_ball = self.qm.get_ball(neighbor)
-                            if neighbor_ball == fball1 or neighbor_ball == fball2:
+                            if ((neighbor_ball == fball1 and ball1 == fball2) or (neighbor_ball == fball2 and ball1 == fball1)) and self.G.edges[box2, neighbor]['label'] != 'quantum':
                                 path_length *= 1.5
+                                #print("Action ", ball1, ball2, "is allowed due to neighbor ball: ", neighbor_ball)
 
+                # moving epr pairs to gates in frontier
+                if (self.qm.ball_in_epr_pairs(ball2)[0] and (ball1 == fball1 or ball1 == fball2)) or (self.qm.ball_in_epr_pairs(ball1)[0] and (ball2 == fball1 or ball2 == fball2)):
+                    if (box1 < self.qubit_amount/2 and box2 < self.qubit_amount/2) or (box1 >= self.qubit_amount/2 and box2 >= self.qubit_amount/2):
+                        path_length *= 1.5
+                        #print("Action ", ball1, ball2, "is allowed due to EPR moving")
 
+            # moving empty qubits to generate position
+            if box2 == 0 and box1 < self.qubit_amount/2 and ball1 >= Constants.NUMQ:
+                path_length *= 1.5
+                #print("Action ", ball1, ball2, "is allowed due to moving for generate")
+            elif box2 == self.qubit_amount/2 and box1 >= self.qubit_amount/2 and ball1 >= Constants.NUMQ:
+                path_length *= 1.5
+                #print("Action ", ball1, ball2, "is allowed due to moving for generate")
+
+            # check if moving pair leaves reserved qubits on qpu
+            if box1 < self.qubit_amount/2 and box2 >= self.qubit_amount/2 and reserved_qubits_per_qpu[1] < 2:
+                path_length = 0
+            if box1 >= self.qubit_amount/2 and box2 < self.qubit_amount/2 and reserved_qubits_per_qpu[0] < 2:
+                path_length = 0
+
+            # make sure only prefered actions are valid
+            if path_length > 1:
+                path_length = 1
+            else:
+                path_length = 0
             #print("Derived from pair at index", self.pairs.index((ball1, ball2)), "and mask is set to", path_length)
             
             # Add pathlength between pair to mask
@@ -315,13 +344,25 @@ class QuantumEnvironmentClass():
 
     #!performs the stop action
     def stop(self):
-        self.min_cd = 1000
-        for node in self.G.nodes:
-            if self.G.nodes[node]['weight'] > 0 and self.G.nodes[node]['weight'] < self.min_cd:
-                self.min_cd = self.G.nodes[node]['weight']   
+        self.prev_mask = self.mask
+        self.min_cd = 10000
 
-        for i in range(self.min_cd):
-            self.reduce_cooldowns()
+        while self.prev_mask == self.mask and self.min_cd != 0:
+            self.min_cd = 10000  # Reset min_cd each loop
+
+            for node in self.G.nodes:
+                weight = self.G.nodes[node]['weight']
+                if weight > 0 and weight < self.min_cd:
+                    self.min_cd = weight
+
+            if self.min_cd == 10000:  # No weights > 0, meaning all cooldowns are 0
+                self.min_cd = 0
+                break
+
+            for _ in range(self.min_cd):
+                self.reduce_cooldowns()
+
+            self.state, self.mask = self.update_state_vector()
 
 
     #!performs the tele_gate action
@@ -419,6 +460,8 @@ class QuantumEnvironmentClass():
         # Find the balls corresponding to the action
         ball1, ball2 = self.pairs[action_num-(1+self.num_entanglement_links)]
 
+        #print("Moving balls:", (ball1, ball2))
+
         # Find the boxes corresponding to ball1 and ball2
         box1 = self.qm.get_box(ball1)
         box2 = self.qm.get_box(ball2)
@@ -455,7 +498,10 @@ class QuantumEnvironmentClass():
 
         matching_scores = [] # here we will store the edges that were picked with the autocomplete method of scoring (scores and tele-gates automatically done after an action)
         reward = 0
-    
+
+        # print("Mask is :", self.mask)
+        # print("Mapping is :", self.state[:self.qubit_amount])
+        # print("Frontier is:", self.frontier)
         # Find all actions corresponding to swapping qubit pair
         taken_actions = self.decode_action_fromNum(action_num)
         #print("State is :", self.state, " from mapping ", self.get_qubit_location_vector())

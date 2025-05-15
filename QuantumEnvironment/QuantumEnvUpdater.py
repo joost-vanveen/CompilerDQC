@@ -96,6 +96,7 @@ class EnvUpdater(gym.Env):      #gym is an opanAI's environment generator tools.
         if done and not successfulDone:
             # print("Dummy Step Count: ", steptemp_dummy)
             reward += Constants.REWARD_DEADLINE
+            append_list_as_row(self.done_filename, self.state[:self.quantumEnv.qubit_amount])
             
         self.epiTotalREward += reward
         if successfulDone:
@@ -128,8 +129,8 @@ class EnvUpdater(gym.Env):      #gym is an opanAI's environment generator tools.
         return new_state, new_mask, reward, done, {}       #supposed to return new state, reward and done to the learning agent
 
 
-    def reset(self):
-        self.quantumEnv.environment_reset()  
+    def reset(self, save_data=False):
+        self.quantumEnv.environment_reset(save_data=save_data)  
         self.state = self.quantumEnv.state
         self.mask = self.quantumEnv.mask
         #print("reset_was_called")

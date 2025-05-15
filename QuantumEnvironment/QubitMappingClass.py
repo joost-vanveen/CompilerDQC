@@ -5,6 +5,8 @@ import numpy as np
 import random
 import matplotlib.patches as mpatches
 import copy
+import json
+import os
 
 
 
@@ -12,7 +14,7 @@ import copy
 
 class QubitMappingClass():
     
-    def __init__(self, numNodes, numQubits, numEPR_threshold, G, initial_mapping=None):
+    def __init__(self, numNodes, numQubits, numEPR_threshold, G, initial_mapping=None, save_mapping=False):
         self.numNodes = numNodes
         self.numQubits = numQubits
         self.numEPR_threshold = numEPR_threshold
@@ -24,6 +26,9 @@ class QubitMappingClass():
 
         if initial_mapping is None:
             initial_mapping = self.generate_random_initial_mapping(G)
+
+        if save_mapping:
+            self.save_mapping_to_file(initial_mapping, path="saved_mapping.json")
 
         # Initialize with given mapping
         if initial_mapping is not None:
@@ -90,6 +95,22 @@ class QubitMappingClass():
                 return True, epr_id  # Ball is part of an EPR pair
         return False, None  # Ball is not part of any EPR pair
     
+    def reserved_qubits_on_qpus(self, logical_qubits, qpu_qubits):
+        start = 0
+        count = []
+
+        for num_qubits in qpu_qubits:
+            end = start + num_qubits
+            # Check each box assigned to this QPU
+            reserved_count = sum(
+                1 for box in range(start, end)
+                if self.box_to_ball.get(box, -1) >= logical_qubits
+            )
+            count.append(reserved_count)
+            start = end
+
+        return count
+    
     
     #!TODO: test this
     #!Generates a random inital mapping where each logical qubit neighbors at least one other logical qubit
@@ -122,4 +143,13 @@ class QubitMappingClass():
             used_physical.add(chosen_physical)
 
         return initial_mapping
+    
+    def save_mapping_to_file(self, mapping, path):
+        try:
+            with open(path, "a") as f:
+                json.dump(mapping, f)
+                f.write("\n")
+            print(f"Mapping appended to {path}")
+        except Exception as e:
+            print(f"Failed to save Mapping: {e}")
     

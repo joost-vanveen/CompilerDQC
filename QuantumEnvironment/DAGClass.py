@@ -5,6 +5,8 @@ import numpy as np
 import random
 import matplotlib.patches as mpatches
 import copy
+import json
+import os
 from Constants import Constants
 
 
@@ -13,9 +15,11 @@ from Constants import Constants
 
 class DAGClass():
     
-    def __init__(self):
+    def __init__(self, save_dag):
         # Create a Directed Graph
-        self.DAG = self.create_random_DAG(Constants.NUMQ, Constants.NUMG)
+        self.DAG, dag_list = self.create_random_DAG(Constants.NUMQ, Constants.NUMG)
+        if save_dag:
+            self.save_dag_to_file(dag_list, path="saved_dag.json")
         #self.DAG = self.create_DAG()
         print(self.DAG)
         self.topo_order = self.compute_topo_order()
@@ -57,21 +61,13 @@ class DAGClass():
             qubit_most_recent_node[x] = current_node
             qubit_most_recent_node[y] = current_node
         
-        return DAG
+        return DAG, dag_list
 
 
     def create_DAG(self):
         DAG = nx.DiGraph()
-        dag_list = [(3, 8, 0), (6, 5, 0), (0, 7, 0),
-                            (1, 6, 1), (6, 0, 2), (2, 0, 3), 
-                            (8, 2, 4), (1, 0, 4), (4, 0, 5), 
-                            (9, 2, 5), (1, 3, 5), (8, 2, 6), 
-                            (4, 2, 7), (8, 6, 7), (2, 0, 8), 
-                            (6, 1, 8), (4, 5, 8), (8, 2, 9), 
-                            (1, 3, 9), (9, 2, 10), (6, 1, 10), 
-                            (3, 9, 11), (0, 1, 11), (0, 2, 12), 
-                            (9, 5, 12), (0, 5, 13), (4, 9, 13), 
-                            (5, 6, 14), (7, 4, 14), (6, 3, 15)]
+        dag_list = [[7, 8, 0], [6, 5, 0], [0, 1, 0], [7, 3, 1], [2, 5, 1], [1, 4, 1], [9, 3, 2], [5, 1, 2], [3, 7, 3], [5, 0, 3], [6, 1, 3], [7, 2, 4], [3, 9, 4], [5, 0, 4], [3, 9, 5], [0, 2, 5], [6, 7, 5], [3, 1, 6], [9, 4, 6], [1, 5, 7], [4, 9, 7], [5, 2, 8], [1, 8, 8], [5, 0, 9], [9, 2, 9], [5, 4, 10], [8, 2, 10], [7, 5, 11], [2, 8, 11], [5, 1, 12]]
+
         # Keeps track of the most recent node for each qubit
         qubit_most_recent_node = {}
         
@@ -147,6 +143,15 @@ class DAGClass():
         # The number of unique qubits is the size of the set
         numQubit = len(unique_numbers)
         return numQubit
+    
+    def save_dag_to_file(self, dag_list, path):
+        try:
+            with open(path, "a") as f:
+                json.dump(dag_list, f)
+                f.write("\n")
+            print(f"DAG appended to {path}")
+        except Exception as e:
+            print(f"Failed to save DAG: {e}")
 
         
 

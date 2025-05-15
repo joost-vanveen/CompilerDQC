@@ -47,23 +47,10 @@ class Epsilon_Greedy_Exploration(Base_Exploration_Strategy):
     
     def obtain_randomized_masked_action(self, mask_vector):
         mask = mask_vector[0]
-        
-        # Preferred actions (mask value == 1.5)
-        preferred_indices = torch.nonzero(mask == 1.5, as_tuple=False)
-        
-        if preferred_indices.size(0) > 0:
-            weights = torch.ones(preferred_indices.size(0))
-            index = torch.multinomial(weights, 1)
-            randaction = preferred_indices[index]
-        else:
-            # Fallback to normal actions (mask value == 1)
-            valid_indices = torch.nonzero(mask == 1.0, as_tuple=False)
-            if valid_indices.size(0) == 0:
-                raise ValueError("No valid actions available in mask.")
-            weights = torch.ones(valid_indices.size(0))
-            index = torch.multinomial(weights, 1)
-            randaction = valid_indices[index]
-
+        non_zero_index_mask = torch.nonzero(mask)
+        weights = torch.ones(non_zero_index_mask.size(0))
+        index = torch.multinomial(weights, 1)
+        randaction = non_zero_index_mask[index]
         return randaction
               
     def get_updated_epsilon_exploration_dynamic(self, action_info, epsilon=1.0):
