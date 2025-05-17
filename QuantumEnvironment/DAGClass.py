@@ -15,12 +15,14 @@ from Constants import Constants
 
 class DAGClass():
     
-    def __init__(self, save_dag):
+    def __init__(self, save_dag, dag_list=None):
         # Create a Directed Graph
-        self.DAG, dag_list = self.create_random_DAG(Constants.NUMQ, Constants.NUMG)
-        if save_dag:
-            self.save_dag_to_file(dag_list, path="saved_dag.json")
-        #self.DAG = self.create_DAG()
+        if dag_list is None:
+            self.DAG, dag_list = self.create_random_DAG(Constants.NUMQ, Constants.NUMG)
+            if save_dag:
+                self.save_dag_to_file(dag_list, path="saved_dag.json")
+        else:
+            self.DAG = self.create_DAG(dag_list)
         print(self.DAG)
         self.topo_order = self.compute_topo_order()
         self.numGates = len(self.topo_order)  #initial number of gates
@@ -64,9 +66,10 @@ class DAGClass():
         return DAG, dag_list
 
 
-    def create_DAG(self):
+    def create_DAG(self, dag_list=None):
         DAG = nx.DiGraph()
-        dag_list = [[7, 8, 0], [6, 5, 0], [0, 1, 0], [7, 3, 1], [2, 5, 1], [1, 4, 1], [9, 3, 2], [5, 1, 2], [3, 7, 3], [5, 0, 3], [6, 1, 3], [7, 2, 4], [3, 9, 4], [5, 0, 4], [3, 9, 5], [0, 2, 5], [6, 7, 5], [3, 1, 6], [9, 4, 6], [1, 5, 7], [4, 9, 7], [5, 2, 8], [1, 8, 8], [5, 0, 9], [9, 2, 9], [5, 4, 10], [8, 2, 10], [7, 5, 11], [2, 8, 11], [5, 1, 12]]
+        if dag_list == None:
+            dag_list = [[7, 8, 0], [6, 5, 0], [0, 1, 0], [7, 3, 1], [2, 5, 1], [1, 4, 1], [9, 3, 2], [5, 1, 2], [3, 7, 3], [5, 0, 3], [6, 1, 3], [7, 2, 4], [3, 9, 4], [5, 0, 4], [3, 9, 5], [0, 2, 5], [6, 7, 5], [3, 1, 6], [9, 4, 6], [1, 5, 7], [4, 9, 7], [5, 2, 8], [1, 8, 8], [5, 0, 9], [9, 2, 9], [5, 4, 10], [8, 2, 10], [7, 5, 11], [2, 8, 11], [5, 1, 12]]
 
         # Keeps track of the most recent node for each qubit
         qubit_most_recent_node = {}

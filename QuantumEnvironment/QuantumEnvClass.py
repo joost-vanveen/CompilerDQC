@@ -7,6 +7,7 @@ import random
 import matplotlib.patches as mpatches
 
 import copy
+import json
 
 from QuantumEnvironment.QPUClass import QPUClass
 from QuantumEnvironment.DAGClass import DAGClass
@@ -16,16 +17,16 @@ from Constants import Constants
 
 class QuantumEnvironmentClass():
     
-    def __init__(self):
+    def __init__(self, learn_from_file=False):
 
         #Initialize the DQC architecture
         self.my_arch = QPUClass()
         self.G = self.my_arch.G
         #Initialize the DAG - quantum circuit
-        self.my_DAG = DAGClass(False)
+        self.my_DAG = DAGClass(False, dag_list=None)
 
         self.num_entanglement_links = self.my_arch.numEdgesQuantum
-        self.max_epr_pairs = 4
+        self.max_epr_pairs = 7
         self.qubit_amount = self.my_DAG.numQubits + 2*self.max_epr_pairs
 
         self.DAG_left = self.my_DAG.numGates
@@ -35,6 +36,15 @@ class QuantumEnvironmentClass():
         self.telequbit_amount = 0
 
         self.action_queues = []
+
+        if learn_from_file:
+            with open("saved_dag.json", 'r') as f:
+                self.dag_list_data = json.load(f)
+            with open("saved_mapping.json", 'r') as f:
+                raw_mappings = json.load(f)
+            self.mapping_list = [{int(k): v for k, v in mapping.items()} for mapping in raw_mappings]
+            self.iteration = 0
+
 
         self.pairs = self.get_qubit_pairs()
         
@@ -47,12 +57,8 @@ class QuantumEnvironmentClass():
     
         
     #!this function generates inital state based on processor architecture and initial DAG conditions  (each_reset_start)  - note that it generates a state object from the class SystemStateClass 
-    def generate_initial_state(self, save_mapping):  
-        # TODO:
-        # make it so we can generate either random mapping or set based on config
-        # test this
-        mapping = {10: 0, 11: 9, 8: 10, 12: 1, 13: 17, 16: 16, 1: 15, 15: 8, 17: 7, 14: 11, 6: 2, 5: 12, 0: 14, 3: 3, 9: 13, 2: 6, 7: 4, 4: 5}
-        self.qm = QubitMappingClass(self.my_arch.numNodes, self.my_DAG.numQubits, self.max_epr_pairs, self.G, initial_mapping=None, save_mapping=save_mapping)
+    def generate_initial_state(self, save_mapping, intial_mapping=None):  
+        self.qm = QubitMappingClass(self.my_arch.numNodes, self.my_DAG.numQubits, self.max_epr_pairs, self.G, initial_mapping=intial_mapping, save_mapping=save_mapping)
         self.update_frontier()
         self.distance_metric = self.calculate_distance_metric()
         self.distance_metric_prev = self.distance_metric
@@ -67,7 +73,6 @@ class QuantumEnvironmentClass():
         return action_size, state_size
     
 
-    # TODO: TEST THIS
     #!creates all possible qubit pairs, where qubits >= logical qubit amount are reserved for EPR pair creation
     def get_qubit_pairs(self):
         pairs = []
@@ -81,12 +86,16 @@ class QuantumEnvironmentClass():
         return pairs
         
     
-    #!after each completion (DAG completion or deadline failure), next game starts with environment/game reset (each_reset_start) 
-    # TODO: Change such that only the inital mapping and all quantum env cooldowns etc are reset      
+    #!after each completion (DAG completion or deadline failure), next game starts with environment/game reset (each_reset_start)      
     def environment_reset(self, save_data=False): #environment reset fn
         
         #Initialize the DAG - quantum circuit
-        self.my_DAG = DAGClass(save_data)      ##HERE WE WILL CHANGE THE DAG IN EVERY TIME SLOT BUT FOR NOW WE FIX A SINGLE ONE - NOTE THAT THE STATE SPACE WILL CHANGE WITH NONE AT THE END BUT WE WILL HAVE A FIXED MAX GATE NUMBER
+        if len(self.dag_list_data) > 0 and len(self.mapping_list) > 0:
+            current_dag = self.dag_list_data[self.iteration]
+            current_mapping = self.mapping_list[self.iteration]
+            save_data=False
+
+        self.my_DAG = DAGClass(save_data, dag_list=current_dag)      ##HERE WE WILL CHANGE THE DAG IN EVERY TIME SLOT BUT FOR NOW WE FIX A SINGLE ONE - NOTE THAT THE STATE SPACE WILL CHANGE WITH NONE AT THE END BUT WE WILL HAVE A FIXED MAX GATE NUMBER
         self.DAG_left = self.my_DAG.numGates
         self.action_amount = 0
         self.swap_amount = 0
@@ -94,7 +103,7 @@ class QuantumEnvironmentClass():
         self.telequbit_amount = 0
         self.action_size, self.state_size = self.generate_action_and_state_size()
 
-        self.generate_initial_state(save_mapping=save_data) 
+        self.generate_initial_state(save_mapping=save_data, intial_mapping=current_mapping) 
         self.state, self.mask = self.update_state_vector()
 
         #print("After Reset, state is: ", self.get_qubit_location_vector())
@@ -113,7 +122,6 @@ class QuantumEnvironmentClass():
 
 
     #!update distnces between all the logical qubit pairs
-    #!TODO: graph changing has been added, now testing
     def update_state_vector(self):
         mask = [1]
 
@@ -158,7 +166,61 @@ class QuantumEnvironmentClass():
         for node in self.pathfinding_G.nodes:
             self.pathfinding_G.nodes[node]['weight'] = 0
 
-        reserved_qubits_per_qpu = self.qm.reserved_qubits_on_qpus(Constants.NUMQ, [9, 9])
+        reserved_qubits_per_qpu = self.qm.reserved_qubits_on_qpus(Constants.NUMQ, [16, 16])
+
+
+        # finds all paths for valid actions
+        all_paths = []
+        for (fball1, fball2, _) in self.frontier:
+            box1 = self.qm.get_box(fball1)
+            box2 = self.qm.get_box(fball2)
+
+            # Path from box1 to box2
+            fpath1 = nx.shortest_path(self.pathfinding_G, source=box1, target=box2)
+            all_paths.append(fpath1)
+
+            # Path from box2 to box1
+            fpath2 = nx.shortest_path(self.pathfinding_G, source=box2, target=box1)
+            all_paths.append(fpath2)
+
+            # From box1 to neighbors of box2 (if edge is not 'quantum')
+            for neighbor in self.pathfinding_G.neighbors(box2):
+                if self.G.edges[box2, neighbor]['label'] != 'quantum':
+                    path = nx.shortest_path(self.pathfinding_G, source=box1, target=neighbor)
+                    all_paths.append(path)
+
+            # From box2 to neighbors of box1 (if edge is not 'quantum')
+            for neighbor in self.pathfinding_G.neighbors(box1):
+                if self.G.edges[box1, neighbor]['label'] != 'quantum':
+                    path = nx.shortest_path(self.pathfinding_G, source=box2, target=neighbor)
+                    all_paths.append(path)
+
+            # EPR pair paths from fball1 and fball2 to EPR balls on same QPU
+            frontier_fballs = [fball1, fball2]
+            for fball in frontier_fballs:
+                fbox = self.qm.get_box(fball)
+                for epr_pair in self.qm.EPR_pairs.values():
+                    for epr_ball in epr_pair:
+                        epr_box = self.qm.get_box(epr_ball)
+                        # Check if on same QPU
+                        if (fbox < self.qubit_amount / 2 and epr_box < self.qubit_amount / 2) or (fbox >= self.qubit_amount / 2 and epr_box >= self.qubit_amount / 2):
+                            path = nx.shortest_path(self.pathfinding_G, source=fbox, target=epr_box)
+                            all_paths.append(path)
+
+        for ball in range(Constants.NUMQ, self.qubit_amount):
+            # Skip if ball is part of any EPR pair
+            if any(ball in pair for pair in self.qm.EPR_pairs.values()):
+                continue
+
+            box = self.qm.get_box(ball)
+            target_box = 0 if box < self.qubit_amount / 2 else int(self.qubit_amount / 2)
+
+            path = nx.shortest_path(self.pathfinding_G, source=box, target=target_box)
+            all_paths.append(path)
+
+        def is_prefix_of_any_path(sub, list_of_paths):
+            sub_len = len(sub)
+            return any(path[:sub_len] == sub for path in list_of_paths)
 
         # Find all qubit pair distances
         for ball1, ball2 in self.pairs:
@@ -186,32 +248,8 @@ class QuantumEnvironmentClass():
             else:
                 path_length = 1
 
-            # check if ball1 and ball2 or neighbors in the frontier
-            for (fball1, fball2, _) in self.frontier:
-                if ball1 == fball1 or ball1 == fball2:
-                    if ball2 == fball1 or ball2 == fball2:
-                        path_length *= 1.5
-                        #print("Action ", ball1, ball2, "is allowed due to being in frontier gate")
-                    else:
-                        for neighbor in self.G.neighbors(box2):
-                            neighbor_ball = self.qm.get_ball(neighbor)
-                            if ((neighbor_ball == fball1 and ball1 == fball2) or (neighbor_ball == fball2 and ball1 == fball1)) and self.G.edges[box2, neighbor]['label'] != 'quantum':
-                                path_length *= 1.5
-                                #print("Action ", ball1, ball2, "is allowed due to neighbor ball: ", neighbor_ball)
-
-                # moving epr pairs to gates in frontier
-                if (self.qm.ball_in_epr_pairs(ball2)[0] and (ball1 == fball1 or ball1 == fball2)) or (self.qm.ball_in_epr_pairs(ball1)[0] and (ball2 == fball1 or ball2 == fball2)):
-                    if (box1 < self.qubit_amount/2 and box2 < self.qubit_amount/2) or (box1 >= self.qubit_amount/2 and box2 >= self.qubit_amount/2):
-                        path_length *= 1.5
-                        #print("Action ", ball1, ball2, "is allowed due to EPR moving")
-
-            # moving empty qubits to generate position
-            if box2 == 0 and box1 < self.qubit_amount/2 and ball1 >= Constants.NUMQ:
-                path_length *= 1.5
-                #print("Action ", ball1, ball2, "is allowed due to moving for generate")
-            elif box2 == self.qubit_amount/2 and box1 >= self.qubit_amount/2 and ball1 >= Constants.NUMQ:
-                path_length *= 1.5
-                #print("Action ", ball1, ball2, "is allowed due to moving for generate")
+            if is_prefix_of_any_path(shortest_path, all_paths):
+                path_length *= 2
 
             # check if moving pair leaves reserved qubits on qpu
             if box1 < self.qubit_amount/2 and box2 >= self.qubit_amount/2 and reserved_qubits_per_qpu[1] < 2:
@@ -221,20 +259,9 @@ class QuantumEnvironmentClass():
 
             # make sure only prefered actions are valid
             if path_length > 1:
-                path_length = 1
+                mask.append(1)
             else:
-                path_length = 0
-            #print("Derived from pair at index", self.pairs.index((ball1, ball2)), "and mask is set to", path_length)
-            
-            # Add pathlength between pair to mask
-            mask.append(path_length)
-
-        # single_numbers_topo_list = [element for tup in self.my_DAG.topo_order for element in tup]
-        # state_vector = state_vector + single_numbers_topo_list
-
-        # if len(state_vector) < self.state_size:
-        #     #print("test")
-        #     state_vector.extend([-2] * (self.state_size - len(state_vector)))
+                mask.append(0)
 
         state_vector = self.get_qubit_location_vector()
 
@@ -267,7 +294,6 @@ class QuantumEnvironmentClass():
         return performed_score
     
     #!performs the generate action
-    #! TODO: Check if boxes have EPR pair could be better defined
     def generate(self, link):
         # Check if the link is a quantum link
         if self.G.edges[link]['label'] != "quantum":

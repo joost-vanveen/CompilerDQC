@@ -34,9 +34,9 @@ class EnvUpdater(gym.Env):      #gym is an opanAI's environment generator tools.
 
     """
 
-    def __init__(self, completion_deadline): 
+    def __init__(self, completion_deadline, learn_from_file=False): 
 
-        self.quantumEnv = QuantumEnvironmentClass()
+        self.quantumEnv = QuantumEnvironmentClass(learn_from_file=learn_from_file)
         self.state = np.array(self.quantumEnv.state)   #state at the beginning decided on by the processor and DAG configurations
         self.mask = np.array(self.quantumEnv.mask)
         
