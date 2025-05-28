@@ -14,7 +14,7 @@ class Constants:
     REWARD_INVALID_ACTION = -100
 
     NUMQ = 18  # number of qubits for the random dag/circuit
-    NUMG = 30  # number of gates for the random dag/circuit
+    NUMG = 50  # number of gates for the random dag/circuit
 
     REWARD_EMPTY_DAG = 3000 
     REWARD_DEADLINE = -3000
