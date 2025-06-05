@@ -38,9 +38,9 @@ class QuantumEnvironmentClass():
         self.action_queues = []
 
         if learn_from_file:
-            with open("saved_dag.json", 'r') as f:
+            with open("Training DAGS/18qubit50g_dag.json", 'r') as f:
                 self.dag_list_data = json.load(f)
-            with open("saved_mapping.json", 'r') as f:
+            with open("Training DAGs/2x16q_mapping.json", 'r') as f:
                 raw_mappings = json.load(f)
             self.mapping_list = [{int(k): v for k, v in mapping.items()} for mapping in raw_mappings]
             self.iteration = 0
@@ -683,11 +683,9 @@ class QuantumEnvironmentClass():
                 value = int(num_str) + self.qubit_amount
             my_list[key] = value
         single_numbers_topo_list = [element for tup in self.my_DAG.topo_order for element in tup]  #break (x,y,z) tuple inside topo_order to x,y,z (x,y qubits and z the layer)
-        if len(single_numbers_topo_list) > 90:
-            single_numbers_topo_list = single_numbers_topo_list[:30]
         #the above is needed for breaking into the state space vector
         state_vector = my_list + single_numbers_topo_list
-        N = self.qm.numNodes + 3*30 # N is the size of a correct state vector
+        N = self.qm.numNodes + 3*self.my_DAG.numGates # N is the size of a correct state vector
         if len(state_vector) < N:
             #print("test")
             state_vector.extend([-2] * (N - len(state_vector)))

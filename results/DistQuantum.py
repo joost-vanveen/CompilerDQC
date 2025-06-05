@@ -44,7 +44,7 @@ config.save_model = True
 # line below, 
 # state_size is number of physcial qubit locations in processors (directload TBD), 
 # completion_deadline is time by which DAG must be completed
-config.environment = EnvUpdater(completion_deadline = 1500 - 1, learn_from_file=False)  #1500  # how many steps we allow for the DAG to be executed
+config.environment = EnvUpdater(completion_deadline = 1500 - 1, learn_from_file=True)  #1500  # how many steps we allow for the DAG to be executed
 
 
 config.hyperparameters = {
@@ -57,7 +57,7 @@ config.hyperparameters = {
         "discount_rate": 0.99,  #0.99,
         "tau": 0.001,
         "update_every_n_steps": 15,
-        "linear_hidden_units": [120,100],     #working was [90,80] and before that [70, 80] did not work [250,150]
+        "linear_hidden_units": [150,120],     #working was [90,80] and before that [70, 80] did not work [250,150]
         "final_layer_activation": "None",
         "batch_norm": False,
         "gradient_clipping_norm": 0.7,
