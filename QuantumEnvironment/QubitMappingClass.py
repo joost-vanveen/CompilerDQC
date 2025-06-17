@@ -1,6 +1,13 @@
 
 import networkx as nx
 import matplotlib.pyplot as plt
+
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from Constants import Constants
+from QuantumEnvironment.QPUClass import QPUClass
 import numpy as np
 import random
 import matplotlib.patches as mpatches
@@ -28,7 +35,7 @@ class QubitMappingClass():
             initial_mapping = self.generate_random_initial_mapping(G)
 
         if save_mapping:
-            self.save_mapping_to_file(initial_mapping, path="saved_mapping.json")
+            self.save_mapping_to_file(initial_mapping, path="test_mapping.json")
 
         # Initialize with given mapping
         if initial_mapping is not None:
@@ -148,8 +155,21 @@ class QubitMappingClass():
         try:
             with open(path, "a") as f:
                 json.dump(mapping, f)
-                f.write("\n")
+                f.write(",\n")
             print(f"Mapping appended to {path}")
         except Exception as e:
             print(f"Failed to save Mapping: {e}")
     
+
+#! Run this to create a set of random initial mappings
+if __name__ == "__main__":
+    # Number of random initial mapppings to be generated
+    SET_SIZE = 200
+    
+    
+    arch = QPUClass()
+    G = arch.G
+    max_epr_pairs = int((arch.numNodes - Constants.NUMQ) / 2)
+
+    for n in range(SET_SIZE):
+        qm = QubitMappingClass(arch.numNodes, Constants.NUMQ, max_epr_pairs, G, initial_mapping=None, save_mapping=True)

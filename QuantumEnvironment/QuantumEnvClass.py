@@ -38,12 +38,13 @@ class QuantumEnvironmentClass():
         self.action_queues = []
 
         if learn_from_file:
-            with open("Training DAGS/18qubit50g_dag.json", 'r') as f:
+            with open(Constants.DAG_FILE, 'r') as f:
                 self.dag_list_data = json.load(f)
-            with open("Training DAGs/2x16q_mapping.json", 'r') as f:
+            with open(Constants.MAPPING_FILE, 'r') as f:
                 raw_mappings = json.load(f)
             self.mapping_list = [{int(k): v for k, v in mapping.items()} for mapping in raw_mappings]
             self.iteration = 0
+            self.iteration_amount = len(self.mapping_list)
         else:
             self.dag_list_data = []
             self.mapping_list = []
@@ -98,6 +99,7 @@ class QuantumEnvironmentClass():
             current_dag = self.dag_list_data[self.iteration]
             current_mapping = self.mapping_list[self.iteration]
             save_data=False
+            self.iteration += 1
         else:
             current_dag = None
             current_mapping = None
@@ -682,6 +684,16 @@ class QuantumEnvironmentClass():
                 prefix, num_str = epr_id.split('-')
                 value = int(num_str) + self.qubit_amount
             my_list[key] = value
+
+        def normalize_topo_order(topo_order, max_len=30):
+            topo_order = topo_order[:max_len]
+            if len(topo_order) > 0:
+                min_order = min(t[2] for t in topo_order)
+                return [(x, y, z - min_order) for (x, y, z) in topo_order]
+            else:
+                return topo_order
+
+
         single_numbers_topo_list = [element for tup in self.my_DAG.topo_order for element in tup]  #break (x,y,z) tuple inside topo_order to x,y,z (x,y qubits and z the layer)
         #the above is needed for breaking into the state space vector
         state_vector = my_list + single_numbers_topo_list

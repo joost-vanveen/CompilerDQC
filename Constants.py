@@ -19,6 +19,9 @@ class Constants:
     REWARD_EMPTY_DAG = 3000 
     REWARD_DEADLINE = -3000
 
+    DAG_FILE = "Training DAGS/18qubit30g_dag.json"
+    MAPPING_FILE = "Training DAGs/2x16q_mapping.json"
+
 
     DISTANCE_MULT = 18  # the multiplier for the difference of total distances metric
     DISTANCE_QUANTUM_LINK = 30 # virtual distance for quantum links (cross processor)

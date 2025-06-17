@@ -40,6 +40,7 @@ config.use_GPU = True
 config.overwrite_existing_results_file = False
 config.randomise_random_seed = False
 config.save_model = True
+config.training = True
 
 # line below, 
 # state_size is number of physcial qubit locations in processors (directload TBD), 
@@ -57,7 +58,7 @@ config.hyperparameters = {
         "discount_rate": 0.99,  #0.99,
         "tau": 0.001,
         "update_every_n_steps": 15,
-        "linear_hidden_units": [150,120],     #working was [90,80] and before that [70, 80] did not work [250,150]
+        "linear_hidden_units": [90,80],     #working was [90,80] and before that [70, 80] did not work [250,150]
         "final_layer_activation": "None",
         "batch_norm": False,
         "gradient_clipping_norm": 0.7,

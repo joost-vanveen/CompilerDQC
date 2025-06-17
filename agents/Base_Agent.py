@@ -176,7 +176,7 @@ class Base_Agent(object):
         self.episode_desired_goals = []
         self.episode_achieved_goals = []
         self.episode_observations = []
-        if "exploration_strategy" in self.__dict__.keys(): self.exploration_strategy.reset()
+        if "exploration_strategy" in self.__dict__.keys() and self.config.training: self.exploration_strategy.reset()
         self.logger.info("Reseting game -- New start state {}".format(self.state))
 
 
@@ -200,7 +200,7 @@ class Base_Agent(object):
         time_taken = time.time() - start
         self.locally_save_policy_MODEL()
         if show_whether_achieved_goal: self.show_whether_achieved_goal()
-        #if self.config.save_model: self.locally_save_policy()
+        if self.config.save_model: self.locally_save_policy()
         return self.game_full_episode_scores, self.rolling_results, time_taken
     
     def locally_save_policy_MODEL(self):

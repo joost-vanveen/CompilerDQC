@@ -6,6 +6,7 @@ import time
 import torch.optim as optim
 import torch.nn.functional as F
 import numpy as np
+import os
 from agents.Base_Agent import Base_Agent
 from exploration_strategies.Epsilon_Greedy_Exploration import Epsilon_Greedy_Exploration
 from utilities.data_structures.Replay_Buffer import Replay_Buffer
@@ -25,7 +26,8 @@ class DQN(Base_Agent):
 
     def reset_game(self):
         super(DQN, self).reset_game()
-        self.update_learning_rate(self.hyperparameters["learning_rate"], self.q_network_optimizer)
+        if self.config.training:
+            self.update_learning_rate(self.hyperparameters["learning_rate"], self.q_network_optimizer)
 
     def step(self, prof=None):
         """Runs a step within a game including a learning step if required"""
@@ -136,7 +138,18 @@ class DQN(Base_Agent):
 
     def locally_save_policy(self):
         """Saves the policy"""
+        os.makedirs("Models", exist_ok=True)
         torch.save(self.q_network_local.state_dict(), "Models/{}_local_network.pt".format(self.agent_name))
+
+    def load_policy(self, model_path=None):
+        """Loads the policy from a saved file"""
+        if model_path is None:
+            model_path = "Models/{}_local_network.pt".format(self.agent_name)
+        if not os.path.exists(model_path):
+            raise FileNotFoundError(f"Model file not found at: {model_path}")
+        
+        self.q_network_local.load_state_dict(torch.load(model_path, map_location=self.device, weights_only=True))
+        self.q_network_local.eval()  # Set the model to evaluation mode
 
     def time_for_q_network_to_learn(self):
         """Returns boolean indicating whether enough steps have been taken for learning to begin and there are

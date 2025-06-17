@@ -7,9 +7,12 @@ import matplotlib.patches as mpatches
 import copy
 import json
 import os
+
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 from Constants import Constants
-
-
 
 
 
@@ -20,7 +23,7 @@ class DAGClass():
         if dag_list is None:
             self.DAG, dag_list = self.create_random_DAG(Constants.NUMQ, Constants.NUMG)
             if save_dag:
-                self.save_dag_to_file(dag_list, path="saved_dag.json")
+                self.save_dag_to_file(dag_list, path="test_dag.json")
         else:
             self.DAG = self.create_DAG(dag_list)
         print(self.DAG)
@@ -151,12 +154,19 @@ class DAGClass():
         try:
             with open(path, "a") as f:
                 json.dump(dag_list, f)
-                f.write("\n")
+                f.write(",\n")
             print(f"DAG appended to {path}")
         except Exception as e:
             print(f"Failed to save DAG: {e}")
 
         
+#! Run this to create a set of random circuits
+if __name__ == "__main__":
+    # Number of random circuits to be generated
+    SET_SIZE = 200
+
+    for n in range(SET_SIZE):
+        dag = DAGClass(save_dag=True)
 
     
     
