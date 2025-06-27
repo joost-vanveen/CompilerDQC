@@ -29,18 +29,15 @@ class QubitMappingClass():
         self.ball_to_box = {}  # ball to box mapping
         self.box_to_ball = {}  # box to ball mapping
         self.EPR_pairs = {}  # EPR pairs mapping
-        self.EPR_pool = [f"EPR-{i}" for i in range(self.numEPR_threshold)]  # Pool of EPR IDs
+        self.EPR_pool = [f"EPR-{i}" for i in range(numEPR_threshold)]  # Pool of EPR IDs
 
         if initial_mapping is None:
-            initial_mapping = self.generate_random_initial_mapping(G)
-
-        if save_mapping:
-            self.save_mapping_to_file(initial_mapping, path="test_mapping.json")
+            initial_mapping = self.generate_random_initial_mapping()
 
         # Initialize with given mapping
         if initial_mapping is not None:
             for ball, box in initial_mapping.items():
-                if (ball > numQubits+(2*self.numEPR_threshold)-1 or box > numNodes - 1):
+                if (ball > numQubits or box > numNodes - 1):
                     raise Exception("Ball or box out of limit.")
                 self.ball_to_box[ball] = box
                 self.box_to_ball[box] = ball
@@ -65,12 +62,15 @@ class QubitMappingClass():
             raise Exception("No more EPR IDs available in the pool.")
         
         if (box1 > self.numNodes - 1 or box2 > self.numNodes - 1):
-            raise Exception("Ball or box out of limit.")
+                    raise Exception("Ball or box out of limit.")
         
         epr_id = self.EPR_pool.pop(0)  # Get the first available ID and remove it from the pool
 
         # Update the mappings
-        self.EPR_pairs[epr_id] = (self.get_ball(box1), self.get_ball(box2))
+        self.ball_to_box[epr_id] = [box1, box2]
+        self.box_to_ball[box1] = epr_id
+        self.box_to_ball[box2] = epr_id
+        self.EPR_pairs[epr_id] = [box1, box2]
 
 
     def destroy_EPR_pair(self, epr_id):
@@ -79,7 +79,10 @@ class QubitMappingClass():
 
         # Remove the pair from the mappings
         self.EPR_pairs.pop(epr_id)
-        
+        boxes = self.ball_to_box[epr_id]  #might have been updated boxes
+        self.ball_to_box.pop(epr_id)
+        self.box_to_ball.pop(boxes[0])
+        self.box_to_ball.pop(boxes[1])
         # Return the ID to the EPR pool
         self.EPR_pool.append(epr_id)
         self.EPR_pool.sort()  # Keep the pool sorted for predictability
@@ -90,8 +93,9 @@ class QubitMappingClass():
             raise Exception(f"No EPR pair with ID {epr_id} exists.")
         # Return the boxes associated with the EPR pair
         # Fetch the current boxes associated with the EPR pair from ball_to_box mapping
-        balls = self.EPR_pairs[epr_id]
-        boxes = (self.get_box(balls[0]), self.get_box(balls[1]))
+        boxes = self.ball_to_box[epr_id]
+        # Update the EPR_pairs mapping
+        self.EPR_pairs[epr_id] = boxes
         # Return the updated boxes
         return boxes
     
@@ -111,45 +115,23 @@ class QubitMappingClass():
             # Check each box assigned to this QPU
             reserved_count = sum(
                 1 for box in range(start, end)
-                if self.box_to_ball.get(box, -1) >= logical_qubits
+                if (self.get_ball(box) is None) or isinstance(self.get_ball(box), str)
             )
             count.append(reserved_count)
             start = end
 
         return count
     
-    
-    #!TODO: test this
+
     #!Generates a random inital mapping where each logical qubit neighbors at least one other logical qubit
-    def generate_random_initial_mapping(self, G):
+    def generate_random_initial_mapping(self):
         if self.numQubits > self.numNodes:
             raise ValueError("Number of logical qubits cannot be greater than the number of physical qubits.")
-
-        initial_mapping = {}
-        used_physical = set()
-
-        # Assign fixed mappings
-        initial_mapping[self.numQubits] = 0
-        initial_mapping[self.numQubits + 1] = 16
-        used_physical.update({0, 16})
-
-        remaining_logical = [i for i in range(self.numQubits+2*self.numEPR_threshold) if i not in initial_mapping]
         physical_qubits = list(range(self.numNodes))
-        random.shuffle(remaining_logical)  # Shuffle to introduce randomness
-
-        for logical in remaining_logical:
-            # Find all valid neighbors of already assigned physical qubits
-            valid_choices = [q for q in physical_qubits if q not in used_physical and any(n in used_physical for n in G.neighbors(q))]
-            
-            if not valid_choices:
-                raise ValueError("No available physical qubits left that are connected to the existing mapping.")
-            
-            # Assign logical qubit to any random valid neighbor
-            chosen_physical = random.choice(valid_choices)
-            initial_mapping[logical] = chosen_physical
-            used_physical.add(chosen_physical)
-
+        random.shuffle(physical_qubits)
+        initial_mapping = {i: physical_qubits[i] for i in range(self.numQubits)}
         return initial_mapping
+    
     
     def save_mapping_to_file(self, mapping, path):
         try:

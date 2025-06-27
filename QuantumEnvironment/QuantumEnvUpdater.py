@@ -82,7 +82,7 @@ class EnvUpdater(gym.Env):      #gym is an opanAI's environment generator tools.
         reward, new_state, new_mask, successfulDone = self.quantumEnv.RL_step(action)
         self.state = new_state 
         self.mask = new_mask
-        steptemp = copy.deepcopy(self.stepCount)
+        steptemp = copy.deepcopy(self.stepCount) + max(self.quantumEnv.G.nodes[node]['weight'] for node in self.quantumEnv.G.nodes)
         steptemp_dummy = copy.deepcopy(self.dummy_stepCount)
         
         
@@ -96,7 +96,6 @@ class EnvUpdater(gym.Env):      #gym is an opanAI's environment generator tools.
         if done and not successfulDone:
             # print("Dummy Step Count: ", steptemp_dummy)
             reward += Constants.REWARD_DEADLINE
-            append_list_as_row(self.done_filename, self.state[:self.quantumEnv.qubit_amount])
             
         self.epiTotalREward += reward
         if successfulDone:
@@ -114,12 +113,10 @@ class EnvUpdater(gym.Env):      #gym is an opanAI's environment generator tools.
             append_list_as_row(self.done_filename, row2)
             append_list_as_row(self.action_stats, row3)
             self.epiTotalREward = 0
-            print(self.quantumEnv.DAG_left)
-            print(row3)
         
-        self.dummy_stepCount += 1
-        if action == 0: ### action=0 is always a stop, and that is the only increase in step
-            self.stepCount += 1
+        self.dummy_stepCount += 1 + self.quantumEnv.step_count - self.stepCount
+        if action == 0 and not done: ### action=0 is always a stop, and that is the only increase in step
+            self.stepCount = self.quantumEnv.step_count
         
         # print("action: ", action)
         # print("new_state: ", new_state)
