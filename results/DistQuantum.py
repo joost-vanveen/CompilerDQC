@@ -27,7 +27,7 @@ import pstats
 config = Config()
 
 config.seed = 123453
-config.num_episodes_to_run = 100   # control number of episodes was 60
+config.num_episodes_to_run = 250   # control number of episodes was 60
 config.file_to_save_data_results = "results/data_and_graphs/dist_quantum_Results_Data.pkl"   #save results 
 config.file_to_save_results_graph = "results/data_and_graphs/dist_quantum__Results_Graph.png"   #save graph
 config.show_solution_score = False
@@ -58,7 +58,7 @@ config.hyperparameters = {
         "discount_rate": 0.99,  #0.99,
         "tau": 0.001,
         "update_every_n_steps": 5,
-        "linear_hidden_units": [90,80],     #working was [90,80] and before that [70, 80] did not work [250,150]
+        "linear_hidden_units": [150,140],     #working was [90,80] and before that [70, 80] did not work [250,150]
         "final_layer_activation": "None",
         "batch_norm": False,
         "gradient_clipping_norm": 0.7,

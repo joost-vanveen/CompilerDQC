@@ -156,7 +156,7 @@ if __name__ == "__main__":
     agent = AGENTS(agent_config)
     
     # load training nn weights
-    agent.load_policy()
+    agent.load_policy(model_path="Saved Models/40G/{}_local_network.pt".format(agent.agent_name))
 
     # for every game in file
     for iteration in range(config.environment.quantumEnv.iteration_amount):

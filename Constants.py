@@ -26,16 +26,3 @@ class Constants:
     DISTANCE_MULT = 18  # the multiplier for the difference of total distances metric
     DISTANCE_QUANTUM_LINK = 30 # virtual distance for quantum links (cross processor)
     DISTANCE_BETWEEN_EPR = 1
-
-    INITIAL_MAPPING = {0: 1,
-                       1: 2,
-                       2: 3,
-                       3: 4,
-                       4: 5,
-                       5: 6,
-                       6: 7,
-                       7: 9,
-                       8: 10,
-                       9: 11,
-                       10: 12,
-                       }

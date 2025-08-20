@@ -34,6 +34,9 @@ class QubitMappingClass():
         if initial_mapping is None:
             initial_mapping = self.generate_random_initial_mapping()
 
+        if save_mapping:
+            self.save_mapping_to_file(initial_mapping, path="test_mapping.json")
+
         # Initialize with given mapping
         if initial_mapping is not None:
             for ball, box in initial_mapping.items():
@@ -146,7 +149,7 @@ class QubitMappingClass():
 #! Run this to create a set of random initial mappings
 if __name__ == "__main__":
     # Number of random initial mapppings to be generated
-    SET_SIZE = 200
+    SET_SIZE = 250
     
     
     arch = QPUClass()

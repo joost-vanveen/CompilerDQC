@@ -163,7 +163,7 @@ class DAGClass():
 #! Run this to create a set of random circuits
 if __name__ == "__main__":
     # Number of random circuits to be generated
-    SET_SIZE = 200
+    SET_SIZE = 250
 
     for n in range(SET_SIZE):
         dag = DAGClass(save_dag=True)
