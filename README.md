@@ -14,5 +14,7 @@ python results/DistQuantum.py
 ```
 Trained Models are saved inside Models/
 
-
-
+To run the compiler with a trained model, edit the filename and ensure correct hyperparameters inside results/DistCompiler.py, and then run:
+```
+python results/DistQuantum.py
+```
