@@ -157,6 +157,8 @@ if __name__ == "__main__":
     
     # load training nn weights
     agent.load_policy(model_path="Saved Models/40G/{}_local_network.pt".format(agent.agent_name))
+    # agent.turn_off_any_epsilon_greedy_exploration()
+    agent.episode_number = 250
 
     # for every game in file
     for iteration in range(config.environment.quantumEnv.iteration_amount):

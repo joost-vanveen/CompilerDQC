@@ -28,7 +28,7 @@ class QuantumEnvironmentClass():
 
         self.num_entanglement_links = self.my_arch.numEdgesQuantum
         self.max_epr_pairs = 7
-        self.qubit_amount = self.my_DAG.numQubits + 2*self.max_epr_pairs
+        self.qubit_amount = self.my_arch.numNodes
 
         #Initialize progress trackers
         self.DAG_left = self.my_DAG.numGates
@@ -89,7 +89,7 @@ class QuantumEnvironmentClass():
         # prev action size was 1 + quantum edges + qubit edges = 32
         #action_size = 1 + (self.qubit_amount * (self.qubit_amount - 1)) - (self.max_epr_pairs*2 * (self.max_epr_pairs*2 - 1)) + self.num_entanglement_links
         action_size = 1 + self.my_arch.numNodes + self.num_entanglement_links #1 for cool off, then amount of qubit pairs plus amount of quantum links
-        state_size = self.my_arch.numNodes + (3*self.my_DAG.numGates) # amount of qubits pairs plus the size of the DAG
+        state_size = self.my_arch.numNodes + (3*Constants.NUMG) # amount of qubits pairs plus the size of the DAG
         return action_size, state_size
     
 
@@ -140,6 +140,7 @@ class QuantumEnvironmentClass():
         # generate new state
         self.generate_initial_state(save_mapping=save_data, intial_mapping=current_mapping) 
         self.state, self.mask = self.update_state_vector()
+        print("State:", self.state)
 
         #print("After Reset, state is: ", self.get_qubit_location_vector())
 
@@ -758,8 +759,8 @@ class QuantumEnvironmentClass():
             else:
                 return topo_order
 
-        #topo_order = normalize_topo_order(self.my_DAG.topo_order, max_len=Constants.NUMG, final_offset=self.dag_order_offset)
-        topo_order = self.my_DAG.topo_order
+        topo_order = normalize_topo_order(self.my_DAG.topo_order, max_len=Constants.NUMG, final_offset=self.dag_order_offset)
+        #topo_order = self.my_DAG.topo_order
         single_numbers_topo_list = [element for tup in topo_order for element in tup]  #break (x,y,z) tuple inside topo_order to x,y,z (x,y qubits and z the layer)
         
         #the above is needed for breaking into the state space vector

@@ -78,7 +78,7 @@ class customizedNN(nn.Module):
         for layer in self.layers:
             x = layer(x)
             
-        x = x = self.combo_layer(x)  # Apply custom logic
+        x = self.combo_layer(x)      # Apply custom logic
         x = x * mask                 # Apply mask         
         return x
     
