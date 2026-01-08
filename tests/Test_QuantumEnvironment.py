@@ -7,10 +7,10 @@ from unittest.mock import MagicMock
 from os.path import dirname, abspath
 sys.path.append(dirname(dirname(abspath(__file__))))
 
-from QuantumEnvironment import QubitMappingClass
-from QuantumEnvironment import QPUClass
-from QuantumEnvironment import DAGClass
-from QuantumEnvironment import QuantumEnvironmentClass
+from quantum_environment import QubitMappingClass
+from quantum_environment import QPUClass
+from quantum_environment import DAGClass
+from quantum_environment import QuantumEnvironmentClass
 from Constants import Constants
 
 class TestQuantumEnvironmentClass(unittest.TestCase):

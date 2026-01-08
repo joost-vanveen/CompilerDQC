@@ -23,7 +23,7 @@ class DAGClass():
         if dag_list is None:
             self.DAG, dag_list = self.create_random_DAG(Constants.NUMQ, Constants.NUMG)
             if save_dag:
-                self.save_dag_to_file(dag_list, path="test_dag.json")
+                self.save_dag_to_file(dag_list, path="training_dags.json")
         else:
             self.DAG = self.create_DAG(dag_list)
         print(self.DAG)

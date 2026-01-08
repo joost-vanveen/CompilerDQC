@@ -14,13 +14,14 @@ class Constants:
     REWARD_INVALID_ACTION = -100
 
     NUMQ = 18  # number of qubits for the random dag/circuit
-    NUMG = 30  # number of gates for the random dag/circuit
+    NUMG = 50  # number of gates for the random dag/circuit
 
     REWARD_EMPTY_DAG = 3000 
     REWARD_DEADLINE = -3000
 
-    DAG_FILE = "Training DAGS/18qubit30g_dag.json"
-    MAPPING_FILE = "Training DAGs/2x16q_mapping.json"
+    # files for inference or training if training from file is true
+    DAG_FILE = "datasets/circuits/18Qubits_30Gates.json"
+    MAPPING_FILE = "datasets/mappings/18QubitsOn32QubitMappingV2.json"
 
 
     DISTANCE_MULT = 18  # the multiplier for the difference of total distances metric

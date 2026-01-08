@@ -9,9 +9,9 @@ import matplotlib.patches as mpatches
 import copy
 import json
 
-from QuantumEnvironment.QPUClass import QPUClass
-from QuantumEnvironment.DAGClass import DAGClass
-from QuantumEnvironment.QubitMappingClass import QubitMappingClass
+from quantum_environment.QPUClass import QPUClass
+from quantum_environment.DAGClass import DAGClass
+from quantum_environment.QubitMappingClass import QubitMappingClass
 from Constants import Constants
 
 
@@ -749,14 +749,16 @@ class QuantumEnvironmentClass():
             my_list[key] = value
 
         def normalize_topo_order(topo_order, max_len=30, final_offset=0):
-            topo_order = topo_order[:max_len]
             if len(topo_order) > max_len:
+                topo_order = topo_order[:max_len]
                 min_order = min(t[2] for t in topo_order)
                 return [(x, y, z - min_order) for (x, y, z) in topo_order]
             elif len(topo_order) > 0:
+                topo_order = topo_order[:max_len]
                 min_order = final_offset
                 return [(x, y, z - min_order) for (x, y, z) in topo_order]
             else:
+                topo_order = topo_order[:max_len]
                 return topo_order
 
         topo_order = normalize_topo_order(self.my_DAG.topo_order, max_len=Constants.NUMG, final_offset=self.dag_order_offset)

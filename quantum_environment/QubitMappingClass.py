@@ -7,7 +7,7 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from Constants import Constants
-from QuantumEnvironment.QPUClass import QPUClass
+from quantum_environment.QPUClass import QPUClass
 import numpy as np
 import random
 import matplotlib.patches as mpatches
@@ -35,7 +35,7 @@ class QubitMappingClass():
             initial_mapping = self.generate_random_initial_mapping()
 
         if save_mapping:
-            self.save_mapping_to_file(initial_mapping, path="test_mapping.json")
+            self.save_mapping_to_file(initial_mapping, path="training_mappings.json")
 
         # Initialize with given mapping
         if initial_mapping is not None:

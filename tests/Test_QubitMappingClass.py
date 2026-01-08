@@ -5,9 +5,9 @@ import sys
 from os.path import dirname, abspath
 sys.path.append(dirname(dirname(abspath(__file__))))
 
-from QuantumEnvironment import QubitMappingClass
-from QuantumEnvironment import QPUClass
-from QuantumEnvironment import DAGClass
+from quantum_environment import QubitMappingClass
+from quantum_environment import QPUClass
+from quantum_environment import DAGClass
 
 class TestQubitMappingClass(unittest.TestCase):
 

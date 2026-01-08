@@ -3,7 +3,7 @@ import sys
 from os.path import dirname, abspath
 sys.path.append(dirname(dirname(abspath(__file__))))
 
-from QuantumEnvironment.QuantumEnvUpdater import EnvUpdater
+from quantum_environment.QuantumEnvUpdater import EnvUpdater
 
 from agents.actor_critic_agents.A2C import A2C
 from agents.DQN_agents.Dueling_DDQN import Dueling_DDQN
@@ -59,7 +59,7 @@ config.hyperparameters = {
         "discount_rate": 0.99,  #0.99,
         "tau": 0.001,
         "update_every_n_steps": 15,
-        "linear_hidden_units": [90,80],     #working was [90,80] and before that [70, 80] did not work [250,150]
+        "linear_hidden_units": [150,120],     #working was [90,80] and before that [70, 80] did not work [250,150]
         "final_layer_activation": "None",
         "batch_norm": False,
         "gradient_clipping_norm": 0.7,
@@ -162,7 +162,7 @@ if __name__ == "__main__":
     agent = AGENTS(agent_config)
 
     # set location of model
-    model_path = model_path="Saved Models/30G/{}_local_network.pt".format(agent.agent_name)
+    model_path = model_path="saved_models/50G/{}_local_network.pt".format(agent.agent_name)
     
     # load training nn weights
     agent.load_policy(model_path=model_path)
