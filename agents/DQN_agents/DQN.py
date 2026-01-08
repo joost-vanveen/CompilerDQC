@@ -29,7 +29,7 @@ class DQN(Base_Agent):
         if self.config.training:
             self.update_learning_rate(self.hyperparameters["learning_rate"], self.q_network_optimizer)
 
-    def step(self, prof=None):
+    def step(self):
         """Runs a step within a game including a learning step if required"""
         self.total_time_sample_experience = 0
         self.total_time_loss_compute = 0
@@ -40,11 +40,8 @@ class DQN(Base_Agent):
             self.action = self.pick_action()
             self.conduct_action(self.action)           
             if self.time_for_q_network_to_learn():
-                #experiences = self.sample_experiences()
                 for _ in range(self.hyperparameters["learning_iterations"]):
                     self.learn()
-                    if prof:
-                        prof.step()
             self.save_experience()
             self.state = self.next_state #this is to set the state for the next iteration
             self.mask = self.next_mask

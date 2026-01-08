@@ -188,13 +188,13 @@ class Base_Agent(object):
         self.episode_next_states.append(self.next_state)
         self.episode_dones.append(self.done)
 
-    def run_n_episodes(self, prof=None, num_episodes=None, show_whether_achieved_goal=True, save_and_print_results=True):
+    def run_n_episodes(self, num_episodes=None, show_whether_achieved_goal=True, save_and_print_results=True):
         """Runs game to completion n times and then summarises results and saves model (if asked to)"""
         if num_episodes is None: num_episodes = self.config.num_episodes_to_run
         start = time.time()
         while self.episode_number < num_episodes:
             self.reset_game()
-            self.step(prof=prof)
+            self.step()
             print(self.episode_number)
             if save_and_print_results: self.save_and_print_result()
         time_taken = time.time() - start

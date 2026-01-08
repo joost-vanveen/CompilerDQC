@@ -59,7 +59,7 @@ config.hyperparameters = {
         "discount_rate": 0.99,  #0.99,
         "tau": 0.001,
         "update_every_n_steps": 15,
-        "linear_hidden_units": [150,120],     #working was [90,80] and before that [70, 80] did not work [250,150]
+        "linear_hidden_units": [90,80],     #working was [90,80] and before that [70, 80] did not work [250,150]
         "final_layer_activation": "None",
         "batch_norm": False,
         "gradient_clipping_norm": 0.7,
@@ -147,6 +147,12 @@ config.hyperparameters = {
 }
 
 if __name__ == "__main__":
+    # In order to perform inference:
+    # 1. Set hyperparamters (nn layers and epislon values) equal to the training parameters
+    # 2. Set the file containing the DAG and qubit mapping for inference in Constants
+    # 3. Set NUMQ and NUMG equal to the amount of logical qubits and the amount of gates passed through to the agent
+    #    (e.g. when using a 30 gate agent use NUMG=30 regarless of the size of the circuit being compiled)
+
     # set agent configs
     AGENTS = DDQN
     agent_config = copy.deepcopy(config)
@@ -154,10 +160,14 @@ if __name__ == "__main__":
 
     # create agent
     agent = AGENTS(agent_config)
+
+    # set location of model
+    model_path = model_path="Saved Models/30G/{}_local_network.pt".format(agent.agent_name)
     
     # load training nn weights
-    agent.load_policy(model_path="Saved Models/40G/{}_local_network.pt".format(agent.agent_name))
-    # agent.turn_off_any_epsilon_greedy_exploration()
+    agent.load_policy(model_path=model_path)
+
+    # Set greedy epsilon equal to amount of episodes trained
     agent.episode_number = 250
 
     # for every game in file

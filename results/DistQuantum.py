@@ -150,26 +150,7 @@ if __name__ == "__main__":
     AGENTS = [DDQN]  # or [DQN], [PPO], etc.
     print(torch.__version__)
     trainer = Trainer(config, AGENTS)
-
-    
-    with torch.profiler.profile(
-        activities=[
-            torch.profiler.ProfilerActivity.CPU,
-            torch.profiler.ProfilerActivity.CUDA,
-        ],
-        schedule=torch.profiler.schedule(wait=1, warmup=1, active=2, repeat=1),
-        on_trace_ready=torch.profiler.tensorboard_trace_handler('./log'),
-        record_shapes=True,
-        with_stack=True
-    ) as prof:
-        # Run your training inside the profiling context
-        trainer.run_games_for_agents(prof=prof)
-        # If trainer.run_games_for_agents() has a loop, you can add `prof.step()` inside that loop
-        events = prof.key_averages()
-        print(f"Total events: {len(events)}")
-        print(events.table(sort_by="cuda_time_total", row_limit=100))
-
-    #trainer.run_games_for_agents(prof=None)
+    trainer.run_games_for_agents()
 
     
     #     "DQN_Agents": {
