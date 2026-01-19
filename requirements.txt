@@ -3,3 +3,5 @@ torch==0.4.1.post2
 matplotlib==3.0.0
 gym==0.10.9
 tensorflow
+networkx
+einpos
